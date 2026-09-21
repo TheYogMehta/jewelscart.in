@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 170" fill="none">
+  <!-- Rounded corners via stroke-linejoin -->
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#EE582A" stroke="#EE582A" stroke-width="3" fill-rule="evenodd" d="M 19 2 L 69 42 L 21 82 L 2 68 L 2 16 Z M 19 30 L 37 42 L 19 54 Z" />
+    <path fill="#00A896" stroke="#00A896" stroke-width="3" fill-rule="evenodd" d="M 76 44 L 126 84 L 78 124 L 59 110 L 59 58 Z M 76 72 L 94 84 L 76 96 Z" />
+    <path fill="#5FB845" stroke="#5FB845" stroke-width="3" fill-rule="evenodd" d="M 19 86 L 69 126 L 21 166 L 2 152 L 2 100 Z M 19 114 L 37 126 L 19 138 Z" />
+  </g>
+</svg>

@@ -1,0 +1,10 @@
+.env
+certificates/
+node_modules/
+public/uploads/
+.next/
+out/
+TODO.md
+tsconfig.tsbuildinfo
+package-lock.json
+README.md

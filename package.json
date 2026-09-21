@@ -1,0 +1,40 @@
+{
+  "name": "jewelscart",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --experimental-https -p 5697",
+    "build": "next build",
+    "start": "next start -p 5697",
+    "lint": "eslint",
+    "migrate": "tsx --env-file=.env node_modules/.bin/node-pg-migrate -d POSTGRES_URL --migration-filename-format index up",
+    "migrate:up": "tsx --env-file=.env node_modules/.bin/node-pg-migrate -d POSTGRES_URL --migration-filename-format index up",
+    "migrate:down": "tsx --env-file=.env node_modules/.bin/node-pg-migrate -d POSTGRES_URL --migration-filename-format index down",
+    "migrate:create": "tsx --env-file=.env node_modules/.bin/node-pg-migrate -d POSTGRES_URL -j sql --migration-filename-format index create"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "next": "^15.5.25",
+    "next-auth": "^5.0.0-beta.32",
+    "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "recharts": "^3.10.1",
+    "sharp": "^0.35.4",
+    "slugify": "^1.6.6",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^20.19.43",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.25",
+    "node-pg-migrate": "^9.0.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), Georgia, serif;
+  --color-gold: #b8860b;
+  --color-gold-light: #d4a843;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-variant-numeric: lining-nums;
+  font-feature-settings: "lnum" 1;
+}
