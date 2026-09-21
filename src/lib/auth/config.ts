@@ -1,6 +1,8 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 
+process.env.AUTH_URL ??= process.env.NEXT_PUBLIC_SITE_URL;
+
 function getEmailSet(envVar: string | undefined): Set<string> {
   const raw = envVar ?? "";
   return new Set(
