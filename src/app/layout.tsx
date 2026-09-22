@@ -9,6 +9,7 @@ import { SessionProvider } from "@/components/SessionProvider";
 import { VerificationBanner } from "@/components/VerificationBanner";
 import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { CartDrawer } from "@/components/cart/CartDrawer";
 import { isEmailVerificationEnabled } from "@/lib/mail";
 import { buildMetadata } from "@/lib/seo";
 
@@ -21,12 +22,15 @@ export const viewport: Viewport = {
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
 });
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-display",
+  display: "swap",
+  fallback: ["Georgia", "serif"],
 });
 
 export const metadata: Metadata = buildMetadata({
@@ -58,6 +62,7 @@ export default function RootLayout({
           </Suspense>
           <CookieConsentBanner />
           <Header />
+          <CartDrawer />
           <main className="w-full max-w-full min-w-0 flex-1">{children}</main>
           <Footer />
         </SessionProvider>

@@ -30,7 +30,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob: data: https:",
       "font-src 'self'",
-      "connect-src 'self' https://accounts.google.com https://challenges.cloudflare.com https://www.google.com https://maps.googleapis.com ws: wss:",
+      "connect-src 'self' https://accounts.google.com https://challenges.cloudflare.com https://www.google.com https://maps.googleapis.com https://api.postalpincode.in ws: wss:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

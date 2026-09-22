@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ProductGallery } from "@/components/ProductGallery";
+import { AddToCartButton } from "@/components/cart/AddToCartButton";
 import { getProductBySlug } from "@/lib/products";
 import { buildMetadata, breadcrumbJsonLd, productJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/security";
@@ -122,6 +123,25 @@ export default async function ProductPage({ params }: Props) {
               </p>
             )}
 
+            {product.price != null && (
+              <div className="mt-6 border-y border-stone-200/80 py-5">
+                <AddToCartButton
+                  product={{
+                    id: String(product._id || product.id),
+                    slug: product.slug,
+                    name: product.name,
+                    price: product.price,
+                    image: product.image,
+                    type: product.type,
+                    category: product.category,
+                    sku: product.sku,
+                    qty: product.qty,
+                    stock_status: product.stock_status,
+                  }}
+                />
+              </div>
+            )}
+
             {/* Product Specifications & Care Guide */}
             <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-50/70 p-5 text-xs text-stone-700 space-y-3">
               <p className="font-semibold uppercase tracking-wider text-stone-900 text-[11px]">
@@ -195,18 +215,12 @@ export default async function ProductPage({ params }: Props) {
               </div>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-4">
+            <div className="mt-6 flex flex-wrap gap-4">
               <Link
                 href="/contact"
-                className="rounded-full bg-gold px-6 py-3 text-sm font-medium text-white shadow-xs transition hover:bg-gold-light"
+                className="rounded-full border border-stone-300 px-6 py-2.5 text-xs font-medium text-stone-700 hover:bg-stone-50 transition"
               >
-                Inquire & Order
-              </Link>
-              <Link
-                href="/#products"
-                className="rounded-full border border-stone-300 px-6 py-3 text-sm font-medium hover:bg-stone-50"
-              >
-                Back to Catalogue
+                Inquire
               </Link>
             </div>
           </div>

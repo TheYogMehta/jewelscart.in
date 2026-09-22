@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { getCategoryBySlug, type CategoryDocument } from "@/lib/categories";
 import { listProducts } from "@/lib/products";
 import { buildMetadata } from "@/lib/seo";
 import { SubCategoryCarousel } from "@/components/SubCategoryCarousel";
 import { CategoryHero } from "@/components/CategoryHero";
-import { isVideoMedia } from "@/lib/media";
+import { ProductCard } from "@/components/ProductCard";
 
 export const revalidate = 60;
 
@@ -269,56 +268,10 @@ export default async function CategoryPage({
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
             {filteredProducts.map((product) => (
-              <Link
-                key={product._id}
-                href={`/products/${product.slug}`}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-xs transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
-              >
-                <div className="relative aspect-square w-full overflow-hidden bg-stone-100">
-                  {isVideoMedia(product.image) ? (
-                    <video
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      preload="metadata"
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      src={product.image}
-                    />
-                  ) : (
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      className="object-cover transition duration-500 group-hover:scale-105"
-                    />
-                  )}
-                  {product.type && (
-                    <span className="absolute top-2.5 left-2.5 rounded-full bg-stone-900/75 px-2.5 py-0.5 text-[10px] font-medium tracking-wide text-white uppercase backdrop-blur-xs">
-                      {product.type}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-1 flex-col p-4 gap-1">
-                  <h3 className="font-display text-sm font-semibold text-stone-900 group-hover:text-gold transition-colors line-clamp-2 sm:text-base">
-                    {product.name}
-                  </h3>
-                  {product.description && (
-                    <p className="text-[11px] text-stone-400 line-clamp-2 leading-relaxed">
-                      {product.description}
-                    </p>
-                  )}
-                  <div className="mt-auto pt-3 flex items-center justify-between border-t border-stone-100">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-stone-400">
-                      {category.name}
-                    </span>
-                    <span className="text-[11px] font-semibold text-stone-600 group-hover:text-gold transition-colors">
-                      View →
-                    </span>
-                  </div>
-                </div>
-              </Link>
+              <ProductCard
+                key={product._id || product.id}
+                product={product}
+              />
             ))}
           </div>
         ) : (

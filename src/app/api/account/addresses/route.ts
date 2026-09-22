@@ -6,6 +6,7 @@ import {
   createAddress,
   addressSchema,
 } from "@/lib/addresses";
+import { validatePostalCodeMatch } from "@/lib/location";
 import { logActivity } from "@/lib/logs";
 import { verifySameOrigin } from "@/lib/security";
 
@@ -59,6 +60,20 @@ export async function POST(request: Request) {
     const user = await findUserByEmail(session.user.email);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const postalCheck = await validatePostalCodeMatch(
+      parsed.data.postal_code,
+      parsed.data.state,
+      parsed.data.country,
+    );
+    if (!postalCheck.valid) {
+      return NextResponse.json(
+        {
+          error: postalCheck.error || "Invalid PIN code for selected location",
+        },
+        { status: 400 },
+      );
     }
 
     const newAddress = await createAddress(user.id, parsed.data);

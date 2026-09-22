@@ -11,29 +11,44 @@ export const addressSchema = z.object({
     .string()
     .trim()
     .min(7, "Phone number is too short")
-    .max(20, "Phone number cannot exceed 20 characters"),
+    .max(20, "Phone number cannot exceed 20 characters")
+    .refine(
+      (val) => {
+        const digits = val.replace(/\D/g, "");
+        return digits.length >= 7 && digits.length <= 15;
+      },
+      { message: "Please enter a valid phone number (7 to 15 digits)" },
+    ),
   address_line1: z
     .string()
     .trim()
-    .min(3, "Address line 1 must be at least 3 characters")
-    .max(300, "Address line 1 cannot exceed 300 characters"),
+    .min(
+      5,
+      "Street address must be at least 5 characters (include house/flat no. and street)",
+    )
+    .max(300, "Street address cannot exceed 300 characters"),
   address_line2: z.string().trim().max(300).optional().nullable(),
   city: z
     .string()
     .trim()
-    .min(2, "City must be at least 2 characters")
-    .max(100, "City cannot exceed 100 characters"),
+    .min(2, "City / District must be at least 2 characters")
+    .max(100, "City / District cannot exceed 100 characters"),
   state: z
     .string()
     .trim()
-    .min(2, "State must be at least 2 characters")
+    .min(2, "Please select or enter a valid state")
     .max(100, "State cannot exceed 100 characters"),
   postal_code: z
     .string()
     .trim()
-    .min(3, "Postal code is too short")
-    .max(20, "Postal code cannot exceed 20 characters"),
-  country: z.string().trim().max(100).optional().default(""),
+    .min(3, "PIN / Postal code must be at least 3 characters")
+    .max(10, "PIN / Postal code cannot exceed 10 characters"),
+  country: z
+    .string()
+    .trim()
+    .min(2, "Country must be at least 2 characters")
+    .max(100, "Country cannot exceed 100 characters")
+    .default("India"),
   is_default: z.boolean().optional().default(false),
   address_type: z.enum(["home", "work", "other"]).default("home"),
 });

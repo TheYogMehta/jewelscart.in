@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import { useCartStore, useCartHydrated } from "@/lib/cart/useCartStore";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -15,6 +16,11 @@ export function Header() {
   const [signingOut, setSigningOut] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const hydrated = useCartHydrated();
+  const openCart = useCartStore((state) => state.openCart);
+  const items = useCartStore((state) => state.items);
+  const cartCount = items.reduce((total, item) => total + item.quantity, 0);
 
   useEffect(() => {
     setMounted(true);
@@ -109,6 +115,33 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-4 lg:flex">
+          {/* Cart Bag Button */}
+          <button
+            type="button"
+            onClick={openCart}
+            className="group relative flex h-8.5 w-8.5 items-center justify-center rounded-full border border-stone-200/90 bg-stone-50/80 text-stone-700 transition hover:border-gold hover:text-gold active:scale-95"
+            aria-label="View shopping bag"
+          >
+            <svg
+              className="h-4.5 w-4.5 text-stone-600 group-hover:text-gold transition-colors"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <path d="M3 6h18" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+            {hydrated && cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-bold text-white shadow-xs ring-2 ring-white animate-in zoom-in-75 duration-150">
+                {cartCount}
+              </span>
+            )}
+          </button>
+
           {!mounted || status === "loading" ? (
             <div className="h-8 w-24 animate-pulse rounded-full bg-stone-200" />
           ) : session?.user ? (
@@ -271,43 +304,72 @@ export function Header() {
           )}
         </div>
 
-        <button
-          type="button"
-          className="p-2 text-stone-700 transition-colors hover:text-gold lg:hidden"
-          onClick={() => setOpen((prev) => !prev)}
-          aria-label="Toggle menu"
-          aria-expanded={open}
-        >
-          {open ? (
+        <div className="flex items-center gap-1.5 lg:hidden">
+          {/* Mobile Cart Trigger */}
+          <button
+            type="button"
+            onClick={openCart}
+            className="relative rounded-full p-2 text-stone-700 hover:text-gold transition"
+            aria-label="View shopping bag"
+          >
             <svg
-              className="h-6 w-6"
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              viewBox="0 0 24 24"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <path d="M3 6h18" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
             </svg>
-          ) : (
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          )}
-        </button>
+            {hydrated && cartCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[9px] font-bold text-white shadow-2xs">
+                {cartCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className="p-2 text-stone-700 transition-colors hover:text-gold"
+            onClick={() => setOpen((prev) => !prev)}
+            aria-label="Toggle menu"
+            aria-expanded={open}
+          >
+            {open ? (
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -333,6 +395,37 @@ export function Header() {
           >
             Contact
           </Link>
+
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              openCart();
+            }}
+            className="flex w-full items-center justify-between py-2 text-stone-700 hover:text-gold font-medium"
+          >
+            <span className="flex items-center gap-2">
+              <svg
+                className="h-4 w-4 text-gold"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              <span>Shopping Cart</span>
+            </span>
+            {hydrated && cartCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[10px] font-bold text-white">
+                {cartCount}
+              </span>
+            )}
+          </button>
 
           <div className="mt-4 border-t border-stone-200/80 pt-4">
             {!mounted || status === "loading" ? (

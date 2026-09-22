@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import type { AddressRecord, AddressInput } from "@/lib/addresses";
+import {
+  getIndianStates,
+  searchIndianCities,
+  findStateForCity,
+  validatePostalCodeMatch,
+} from "@/lib/location";
+import { useCartStore } from "@/lib/cart/useCartStore";
 
 interface Props {
   initialAddresses: AddressRecord[];
@@ -12,14 +19,12 @@ interface Props {
 
 export function AccountAddresses({
   initialAddresses,
-  userName,
   onAddressCountChange,
 }: Props) {
   const [addresses, setAddresses] = useState<AddressRecord[]>(initialAddresses);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // Form State
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
@@ -27,11 +32,76 @@ export function AccountAddresses({
   const [city, setCity] = useState("");
   const [stateName, setStateName] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [country, setCountry] = useState("");
+  const [country, setCountry] = useState("India");
   const [addressType, setAddressType] = useState<"home" | "work" | "other">(
     "home",
   );
   const [isDefault, setIsDefault] = useState(false);
+
+  const statesList = useMemo(() => getIndianStates(), []);
+
+  const [citySuggestions, setCitySuggestions] = useState<
+    Array<{ name: string; stateName: string }>
+  >([]);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const cityDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        cityDropdownRef.current &&
+        !cityDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowCityDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleCityChange = (val: string) => {
+    setCity(val);
+    if (fieldErrors.city) {
+      setFieldErrors((prev) => ({ ...prev, city: undefined }));
+    }
+    const detectedState = findStateForCity(val);
+    if (detectedState) {
+      setStateName(detectedState);
+      if (fieldErrors.stateName) {
+        setFieldErrors((prev) => ({ ...prev, stateName: undefined }));
+      }
+    }
+    if (val.trim().length >= 2) {
+      const matches = searchIndianCities(val);
+      setCitySuggestions(matches);
+      setShowCityDropdown(matches.length > 0);
+    } else {
+      setCitySuggestions([]);
+      setShowCityDropdown(false);
+    }
+  };
+
+  const handleSelectCity = (cityName: string, detectedState?: string) => {
+    setCity(cityName);
+    setShowCityDropdown(false);
+    if (fieldErrors.city) {
+      setFieldErrors((prev) => ({ ...prev, city: undefined }));
+    }
+    const targetState = detectedState || findStateForCity(cityName);
+    if (targetState) {
+      setStateName(targetState);
+      if (fieldErrors.stateName) {
+        setFieldErrors((prev) => ({ ...prev, stateName: undefined }));
+      }
+    }
+  };
+
+  const handlePostalCodeChange = (val: string) => {
+    setPostalCode(val);
+    if (fieldErrors.postalCode) {
+      setFieldErrors((prev) => ({ ...prev, postalCode: undefined }));
+    }
+  };
 
   // Status & Feedback
   const [saving, setSaving] = useState(false);
@@ -39,6 +109,102 @@ export function AccountAddresses({
   const [settingDefaultId, setSettingDefaultId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    fullName?: string;
+    phone?: string;
+    addressLine1?: string;
+    postalCode?: string;
+    city?: string;
+    stateName?: string;
+    country?: string;
+  }>({});
+
+  const validateForm = (): boolean => {
+    const errors: typeof fieldErrors = {};
+
+    const trimmedName = fullName.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedStreet = addressLine1.trim();
+    const trimmedPostal = postalCode.trim();
+    const trimmedCity = city.trim();
+    const trimmedState = stateName.trim();
+    const trimmedCountry = country.trim();
+
+    if (!trimmedName) {
+      errors.fullName = "Please enter the recipient's full name";
+    } else if (trimmedName.length < 2) {
+      errors.fullName = "Full name must be at least 2 characters";
+    }
+
+    if (!trimmedCountry) {
+      errors.country = "Please enter or select a country";
+    } else if (trimmedCountry.length < 2) {
+      errors.country = "Country must be at least 2 characters";
+    }
+
+    const isIndia =
+      !trimmedCountry ||
+      trimmedCountry.toLowerCase() === "india" ||
+      trimmedCountry.toLowerCase() === "in";
+
+    const rawDigits = trimmedPhone.replace(/\D/g, "");
+    if (!trimmedPhone) {
+      errors.phone = "Please enter a contact phone number";
+    } else if (isIndia) {
+      const tenDigits =
+        rawDigits.length === 12 && rawDigits.startsWith("91")
+          ? rawDigits.slice(2)
+          : rawDigits;
+      if (tenDigits.length !== 10 || !/^[6-9]\d{9}$/.test(tenDigits)) {
+        errors.phone =
+          "Please enter a valid 10-digit Indian mobile number (e.g. 9876543210)";
+      }
+    } else if (rawDigits.length < 7 || rawDigits.length > 15) {
+      errors.phone = "Please enter a valid phone number (7 to 15 digits)";
+    }
+
+    if (!trimmedStreet) {
+      errors.addressLine1 =
+        "Please enter flat / house no., building and street details";
+    } else if (trimmedStreet.length < 5) {
+      errors.addressLine1 = "Street address is too short (min 5 characters)";
+    }
+
+    if (!trimmedPostal) {
+      errors.postalCode = isIndia
+        ? "Please enter 6-digit Indian PIN code"
+        : "Please enter postal / ZIP code";
+    } else if (isIndia) {
+      const cleanPin = trimmedPostal.replace(/\D/g, "");
+      if (cleanPin.length !== 6 || !/^[1-9]\d{5}$/.test(cleanPin)) {
+        errors.postalCode =
+          "Please enter a valid 6-digit Indian PIN code (cannot start with 0)";
+      }
+    } else if (trimmedPostal.length < 3) {
+      errors.postalCode = "Postal code must be at least 3 characters";
+    }
+
+    if (!trimmedCity) {
+      errors.city = "Please enter city or district";
+    } else if (trimmedCity.length < 2) {
+      errors.city = "City / District must be at least 2 characters";
+    }
+
+    if (!trimmedState) {
+      errors.stateName = "Please select or enter a state";
+    } else if (trimmedState.length < 2) {
+      errors.stateName = "State must be at least 2 characters";
+    }
+
+    setFieldErrors(errors);
+    const errValues = Object.values(errors).filter(Boolean);
+    if (errValues.length > 0) {
+      setError(errValues[0]);
+      return false;
+    }
+
+    return true;
+  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -49,9 +215,12 @@ export function AccountAddresses({
     setCity("");
     setStateName("");
     setPostalCode("");
-    setCountry("");
+    setCountry("India");
     setAddressType("home");
     setIsDefault(addresses.length === 0);
+    setCitySuggestions([]);
+    setShowCityDropdown(false);
+    setFieldErrors({});
     setError(null);
   };
 
@@ -69,9 +238,10 @@ export function AccountAddresses({
     setCity(addr.city);
     setStateName(addr.state);
     setPostalCode(addr.postal_code);
-    setCountry(addr.country || "");
+    setCountry(addr.country || "India");
     setAddressType(addr.address_type || "home");
     setIsDefault(addr.is_default);
+    setFieldErrors({});
     setError(null);
     setIsFormOpen(true);
   };
@@ -85,7 +255,27 @@ export function AccountAddresses({
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!validateForm()) {
+      return;
+    }
+
     setSaving(true);
+
+    const postalCheck = await validatePostalCodeMatch(
+      postalCode.trim(),
+      stateName.trim(),
+      country.trim(),
+    );
+    if (!postalCheck.valid) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        postalCode: postalCheck.error,
+      }));
+      setError(postalCheck.error || "PIN code does not match selected state");
+      setSaving(false);
+      return;
+    }
 
     const payload: AddressInput = {
       full_name: fullName.trim(),
@@ -144,6 +334,22 @@ export function AccountAddresses({
         setAddresses(newAddrs);
         onAddressCountChange?.(newAddrs.length);
         setSuccess("New address added successfully.");
+
+        const savedAddr = data.address;
+        if (savedAddr) {
+          const currentCartAddr = useCartStore.getState().deliveryAddress;
+          if (payload.is_default || !currentCartAddr) {
+            useCartStore.getState().setDeliveryAddress({
+              fullName: savedAddr.full_name,
+              phone: savedAddr.phone,
+              addressLine1: savedAddr.address_line1,
+              addressLine2: savedAddr.address_line2 || "",
+              city: savedAddr.city,
+              state: savedAddr.state,
+              pincode: savedAddr.postal_code,
+            });
+          }
+        }
       }
 
       handleCloseForm();
@@ -200,6 +406,19 @@ export function AccountAddresses({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Failed to set default address");
+      }
+
+      const target = addresses.find((a) => a.id === id);
+      if (target) {
+        useCartStore.getState().setDeliveryAddress({
+          fullName: target.full_name,
+          phone: target.phone,
+          addressLine1: target.address_line1,
+          addressLine2: target.address_line2 || "",
+          city: target.city,
+          state: target.state,
+          pincode: target.postal_code,
+        });
       }
 
       setAddresses((prev) =>
@@ -327,9 +546,26 @@ export function AccountAddresses({
                   required
                   autoComplete="name"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    if (fieldErrors.fullName) {
+                      setFieldErrors((prev) => ({
+                        ...prev,
+                        fullName: undefined,
+                      }));
+                    }
+                  }}
+                  className={`mt-1 block w-full rounded-xl border ${
+                    fieldErrors.fullName
+                      ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-400"
+                      : "border-stone-200 bg-white focus:border-gold focus:ring-gold"
+                  } px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-1`}
                 />
+                {fieldErrors.fullName && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {fieldErrors.fullName}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -351,10 +587,28 @@ export function AccountAddresses({
                     required
                     autoComplete="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="block w-full rounded-xl border border-stone-200 bg-white pl-11 pr-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (fieldErrors.phone) {
+                        setFieldErrors((prev) => ({
+                          ...prev,
+                          phone: undefined,
+                        }));
+                      }
+                    }}
+                    placeholder="10-digit mobile number"
+                    className={`block w-full rounded-xl border ${
+                      fieldErrors.phone
+                        ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-400"
+                        : "border-stone-200 bg-white focus:border-gold focus:ring-gold"
+                    } pl-11 pr-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-1`}
                   />
                 </div>
+                {fieldErrors.phone && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {fieldErrors.phone}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -373,10 +627,28 @@ export function AccountAddresses({
                 type="text"
                 required
                 autoComplete="street-address"
+                placeholder="House / Flat No., Building, Street, Area"
                 value={addressLine1}
-                onChange={(e) => setAddressLine1(e.target.value)}
-                className="mt-1 block w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                onChange={(e) => {
+                  setAddressLine1(e.target.value);
+                  if (fieldErrors.addressLine1) {
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      addressLine1: undefined,
+                    }));
+                  }
+                }}
+                className={`mt-1 block w-full rounded-xl border ${
+                  fieldErrors.addressLine1
+                    ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-400"
+                    : "border-stone-200 bg-white focus:border-gold focus:ring-gold"
+                } px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-1`}
               />
+              {fieldErrors.addressLine1 && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {fieldErrors.addressLine1}
+                </p>
+              )}
             </div>
 
             {/* Address Line 2 */}
@@ -398,25 +670,100 @@ export function AccountAddresses({
               />
             </div>
 
-            {/* City, State, PIN Code, Country */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
+            {/* PIN Code */}
+            <div>
+              <label
+                htmlFor="postal_code"
+                className="block text-xs font-semibold uppercase tracking-wider text-stone-700"
+              >
+                PIN / Postal Code <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="postal_code"
+                name="postal_code"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                required
+                autoComplete="postal-code"
+                placeholder="Enter 6-digit PIN code (e.g. 400001)"
+                value={postalCode}
+                onChange={(e) => handlePostalCodeChange(e.target.value)}
+                className={`mt-1 block w-full rounded-xl border ${
+                  fieldErrors.postalCode
+                    ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-400"
+                    : "border-stone-200 bg-white focus:border-gold focus:ring-gold"
+                } px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-1`}
+              />
+              {fieldErrors.postalCode && (
+                <p className="mt-1 text-xs font-medium text-red-600">
+                  {fieldErrors.postalCode}
+                </p>
+              )}
+            </div>
+
+            {/* City, State, Country */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="relative" ref={cityDropdownRef}>
                 <label
                   htmlFor="city"
                   className="block text-xs font-semibold uppercase tracking-wider text-stone-700"
                 >
-                  City <span className="text-red-500">*</span>
+                  City / District <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="city"
                   name="city"
                   type="text"
                   required
-                  autoComplete="address-level2"
+                  autoComplete="off"
+                  placeholder="City (e.g. Mumbai)"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                  onChange={(e) => handleCityChange(e.target.value)}
+                  onFocus={() => {
+                    if (city.trim().length >= 2) {
+                      const matches = searchIndianCities(city);
+                      setCitySuggestions(matches);
+                      setShowCityDropdown(matches.length > 0);
+                    }
+                  }}
+                  className={`mt-1 block w-full rounded-xl border ${
+                    fieldErrors.city
+                      ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-400"
+                      : "border-stone-200 bg-white focus:border-gold focus:ring-gold"
+                  } px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-1`}
                 />
+
+                {showCityDropdown && citySuggestions.length > 0 && (
+                  <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-stone-200 bg-white py-1.5 shadow-xl text-xs">
+                    {citySuggestions.map((item) => (
+                      <li key={`${item.name}-${item.stateName}`}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSelectCity(item.name, item.stateName)
+                          }
+                          className="flex w-full items-center justify-between px-3.5 py-2 text-left hover:bg-amber-50/70 hover:text-stone-900 transition cursor-pointer"
+                        >
+                          <span className="font-medium text-stone-900">
+                            {item.name}
+                          </span>
+                          {item.stateName && (
+                            <span className="text-[11px] text-stone-400 font-normal">
+                              {item.stateName}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {fieldErrors.city && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {fieldErrors.city}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -426,36 +773,38 @@ export function AccountAddresses({
                 >
                   State <span className="text-red-500">*</span>
                 </label>
-                <input
+                <select
                   id="state"
                   name="state"
-                  type="text"
                   required
-                  autoComplete="address-level1"
                   value={stateName}
-                  onChange={(e) => setStateName(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="postal_code"
-                  className="block text-xs font-semibold uppercase tracking-wider text-stone-700"
+                  onChange={(e) => {
+                    setStateName(e.target.value);
+                    if (fieldErrors.stateName) {
+                      setFieldErrors((prev) => ({
+                        ...prev,
+                        stateName: undefined,
+                      }));
+                    }
+                  }}
+                  className={`mt-1 block w-full rounded-xl border ${
+                    fieldErrors.stateName
+                      ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-400"
+                      : "border-stone-200 bg-white focus:border-gold focus:ring-gold"
+                  } px-3.5 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-1`}
                 >
-                  PIN / Postal Code <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="postal_code"
-                  name="postal_code"
-                  type="text"
-                  inputMode="numeric"
-                  required
-                  autoComplete="postal-code"
-                  value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
-                />
+                  <option value="">Select State</option>
+                  {statesList.map((s) => (
+                    <option key={s.isoCode} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {fieldErrors.stateName && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {fieldErrors.stateName}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -463,17 +812,35 @@ export function AccountAddresses({
                   htmlFor="country"
                   className="block text-xs font-semibold uppercase tracking-wider text-stone-700"
                 >
-                  Country
+                  Country <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="country"
                   name="country"
                   type="text"
-                  autoComplete="country-name"
+                  required
                   value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="mt-1 block w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    if (fieldErrors.country) {
+                      setFieldErrors((prev) => ({
+                        ...prev,
+                        country: undefined,
+                      }));
+                    }
+                  }}
+                  placeholder="Country"
+                  className={`mt-1 block w-full rounded-xl border ${
+                    fieldErrors.country
+                      ? "border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-400"
+                      : "border-stone-200 bg-white focus:border-gold focus:ring-gold"
+                  } px-3.5 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-1`}
                 />
+                {fieldErrors.country && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    {fieldErrors.country}
+                  </p>
+                )}
               </div>
             </div>
 

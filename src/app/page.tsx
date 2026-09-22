@@ -234,7 +234,7 @@ export default async function HomePage() {
               href="/contact"
               className="rounded-xl bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-wider text-white hover:bg-gold-light transition shadow-xs"
             >
-              Enquire Custom Design
+              Enquire
             </Link>
             <a
               href="https://wa.me/919920685652?text=Hi%20JewelsCart,%20I'm%20interested%20in%20a%20custom%20jewellery%20design"
