@@ -39,7 +39,7 @@ export function ProductCard({ product }: { product: ProductDocument }) {
             </p>
             {product.price != null && (
               <p className="text-sm font-semibold text-stone-900 shrink-0">
-                /- ₹{product.price.toLocaleString("en-IN")}
+                ₹{product.price.toLocaleString("en-IN")} /-
               </p>
             )}
           </div>

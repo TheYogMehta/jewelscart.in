@@ -14,6 +14,10 @@ export interface UserRecord {
   role: AppRole;
   provider: string;
   email_verified: boolean;
+  verification_token?: string | null;
+  verification_token_expires?: Date | null;
+  reset_password_token?: string | null;
+  reset_password_token_expires?: Date | null;
   created_at: Date;
   updated_at?: Date;
 }
@@ -350,17 +354,22 @@ export async function createUser(data: {
   return res.rows[0];
 }
 
+export function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 export async function createVerificationToken(userId: number): Promise<string> {
   const pool = await connectDB();
-  const token = crypto.randomBytes(32).toString("hex");
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = hashToken(rawToken);
   await pool.query(
     `UPDATE users 
      SET verification_token = $1, 
          verification_token_expires = NOW() + INTERVAL '24 hours'
      WHERE id = $2`,
-    [token, userId],
+    [hashedToken, userId],
   );
-  return token;
+  return rawToken;
 }
 
 export async function verifyUserToken(
@@ -368,6 +377,7 @@ export async function verifyUserToken(
 ): Promise<UserRecord | null> {
   if (!token) return null;
   const pool = await connectDB();
+  const hashedToken = hashToken(token.trim());
   const res = await pool.query(
     `UPDATE users 
      SET email_verified = TRUE, 
@@ -377,7 +387,7 @@ export async function verifyUserToken(
      WHERE verification_token = $1 
        AND verification_token_expires > NOW()
      RETURNING *`,
-    [token.trim()],
+    [hashedToken],
   );
   if (res.rows.length === 0) return null;
   return res.rows[0];
@@ -399,18 +409,16 @@ export async function markUserVerified(userId: number): Promise<void> {
 export async function setPasswordForUser(
   userId: number,
   password: string,
-  requiresVerification: boolean = true,
 ): Promise<UserRecord> {
   const pool = await connectDB();
   const passwordHash = hashPassword(password);
   const res = await pool.query(
     `UPDATE users 
      SET password_hash = $1, 
-         email_verified = CASE WHEN $2 = TRUE THEN FALSE ELSE email_verified END,
          updated_at = NOW()
-     WHERE id = $3
+     WHERE id = $2
      RETURNING *`,
-    [passwordHash, requiresVerification, userId],
+    [passwordHash, userId],
   );
   return res.rows[0];
 }
@@ -425,4 +433,72 @@ export async function markGoogleLinked(userId: number): Promise<void> {
      WHERE id = $1`,
     [userId],
   );
+}
+
+export async function createPasswordResetToken(
+  email: string,
+): Promise<{ token: string; user: UserRecord } | null> {
+  const user = await findUserByEmail(email);
+  if (!user) return null;
+
+  const pool = await connectDB();
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = hashToken(rawToken);
+
+  const res = await pool.query(
+    `UPDATE users 
+     SET reset_password_token = $1, 
+         reset_password_token_expires = NOW() + INTERVAL '1 hour',
+         updated_at = NOW()
+     WHERE id = $2
+     RETURNING *`,
+    [hashedToken, user.id],
+  );
+
+  if (res.rows.length === 0) return null;
+  return { token: rawToken, user: res.rows[0] };
+}
+
+export async function validatePasswordResetToken(
+  token: string,
+): Promise<UserRecord | null> {
+  if (!token || !token.trim()) return null;
+  const pool = await connectDB();
+  const hashedToken = hashToken(token.trim());
+  const res = await pool.query(
+    `SELECT * FROM users 
+     WHERE reset_password_token = $1 
+       AND reset_password_token_expires > NOW()
+     LIMIT 1`,
+    [hashedToken],
+  );
+  if (res.rows.length === 0) return null;
+  return res.rows[0];
+}
+
+export async function resetPasswordWithToken(
+  token: string,
+  newPassword: string,
+): Promise<UserRecord | null> {
+  if (!token || !token.trim()) return null;
+  const pool = await connectDB();
+  const passwordHash = hashPassword(newPassword);
+  const hashedToken = hashToken(token.trim());
+
+  const res = await pool.query(
+    `UPDATE users 
+     SET password_hash = $1, 
+         reset_password_token = NULL, 
+         reset_password_token_expires = NULL,
+         email_verified = TRUE,
+         updated_at = NOW()
+     WHERE reset_password_token = $2 
+       AND reset_password_token_expires > NOW()
+     RETURNING *`,
+    [passwordHash, hashedToken],
+  );
+
+  if (res.rows.length === 0) return null;
+  invalidateUserSessionCache(res.rows[0].id);
+  return res.rows[0];
 }

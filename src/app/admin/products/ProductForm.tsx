@@ -1245,7 +1245,7 @@ export function ProductForm({ initialProduct, isEdit = false }: Props) {
                 <div>
                   {parseFloat(price) > 0 ? (
                     <span className="font-display text-lg font-semibold text-stone-900">
-                      /- ₹{parseFloat(price).toLocaleString("en-IN")}
+                      ₹{parseFloat(price).toLocaleString("en-IN")} /-
                     </span>
                   ) : (
                     <span className="text-xs font-medium text-stone-500">

@@ -17,7 +17,7 @@ const categorySchema = z.object({
   description: z.string().max(50000).nullable().optional(),
   banner_url: z.string().nullable().optional(),
   banner_type: z.enum(["image", "video"]).optional(),
-  show_in_header: z.boolean().optional(),
+  is_visible: z.boolean().optional(),
   header_order: z.number().int().optional(),
 });
 
@@ -26,7 +26,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const headerOnly = searchParams.get("header") === "true";
+    const visibleOnly =
+      searchParams.get("visible") === "true" ||
+      searchParams.get("visibleOnly") === "true";
     const pathsOnly = searchParams.get("paths") === "true";
     const all =
       searchParams.get("all") === "true" || searchParams.get("flat") === "true";
@@ -38,7 +40,7 @@ export async function GET(request: Request) {
       data = await listAllCategories({ fresh: true });
     } else {
       data = await listCategories({
-        showInHeaderOnly: headerOnly,
+        visibleOnly: visibleOnly,
         fresh: true,
       });
     }

@@ -16,7 +16,7 @@ const updateCategorySchema = z.object({
   description: z.string().max(50000).nullable().optional(),
   banner_url: z.string().nullable().optional(),
   banner_type: z.enum(["image", "video"]).optional(),
-  show_in_header: z.boolean().optional(),
+  is_visible: z.boolean().optional(),
   header_order: z.number().int().optional(),
 });
 

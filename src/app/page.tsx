@@ -26,7 +26,7 @@ export default async function HomePage() {
   try {
     const [p, c, cnt] = await Promise.all([
       listProducts({ limit: 4 }),
-      listCategories({ showInHeaderOnly: true }),
+      listCategories({ visibleOnly: true, limit: 3 }),
       getPageContent("home"),
     ]);
     products = p.slice(0, 4);
@@ -187,29 +187,31 @@ export default async function HomePage() {
         className="bg-stone-50/50 py-16 lg:py-20 border-t border-stone-200/80"
       >
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="mb-10 text-center max-w-2xl mx-auto">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
-              Handcrafted Catalogue
-            </span>
-            <h2 className="font-display mt-1 text-3xl font-semibold text-stone-900 md:text-4xl">
-              Latest Additions
-            </h2>
-            <p className="mt-2 text-sm text-stone-500">
-              Fresh bespoke additions from our Mumbai atelier, crafted with
-              heirloom precision.
-            </p>
+          <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+                Handcrafted Catalogue
+              </span>
+              <h2 className="font-display mt-1 text-3xl font-semibold text-stone-900 md:text-4xl">
+                Latest Additions
+              </h2>
+              <p className="mt-2 text-sm text-stone-500">
+                Fresh bespoke additions from our Mumbai atelier, crafted with
+                heirloom precision.
+              </p>
+            </div>
+            <Link
+              href="/discover"
+              className="group text-xs font-semibold uppercase tracking-wider text-stone-500 hover:text-gold transition-colors flex items-center gap-1.5"
+            >
+              <span>View All</span>
+              <span className="transition-transform group-hover:translate-x-0.5">
+                &rarr;
+              </span>
+            </Link>
           </div>
 
           <ProductGrid products={products} />
-
-          <div className="mt-12 text-center">
-            <Link
-              href="/discover"
-              className="inline-flex items-center rounded-xl bg-stone-900 px-8 py-3 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-gold transition"
-            >
-              View Full Collection &rarr;
-            </Link>
-          </div>
         </div>
       </section>
 

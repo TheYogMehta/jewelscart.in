@@ -244,8 +244,8 @@ export function CategoryForm({ initialCategory, isEdit = false }: Props) {
   );
   const [bannerUrl, setBannerUrl] = useState(initialCategory?.banner_url || "");
   const [imageError, setImageError] = useState(false);
-  const [showInHeader, setShowInHeader] = useState<boolean>(
-    initialCategory?.show_in_header ?? true,
+  const [isVisible, setIsVisible] = useState<boolean>(
+    initialCategory?.is_visible ?? true,
   );
 
   const [loading, setLoading] = useState(false);
@@ -339,7 +339,7 @@ export function CategoryForm({ initialCategory, isEdit = false }: Props) {
         description: description.trim() || null,
         banner_type: bannerType,
         banner_url: bannerUrl.trim() || null,
-        show_in_header: showInHeader,
+        is_visible: isVisible,
       };
 
       const res = await fetch(url, {
@@ -437,7 +437,7 @@ export function CategoryForm({ initialCategory, isEdit = false }: Props) {
                   ? `Edit "${initialCategory?.name}"`
                   : "Add New Category"}
               </h1>
-              {!showInHeader && (
+              {!isVisible && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
                   Hidden
                 </span>
@@ -457,21 +457,21 @@ export function CategoryForm({ initialCategory, isEdit = false }: Props) {
             </Link>
             <button
               type="button"
-              onClick={() => setShowInHeader((prev) => !prev)}
+              onClick={() => setIsVisible((prev) => !prev)}
               disabled={loading}
               title={
-                showInHeader
+                isVisible
                   ? "Category is visible. Click to hide."
                   : "Category is hidden. Click to show."
               }
-              aria-label={showInHeader ? "Hide category" : "Show category"}
+              aria-label={isVisible ? "Hide category" : "Show category"}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition shadow-2xs cursor-pointer ${
-                showInHeader
+                isVisible
                   ? "border-stone-200 bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
                   : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
               }`}
             >
-              {showInHeader ? (
+              {isVisible ? (
                 <svg
                   className="h-4.5 w-4.5"
                   fill="none"

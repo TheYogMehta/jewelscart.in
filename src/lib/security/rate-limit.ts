@@ -8,6 +8,20 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>();
 
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+let lastCleanup = Date.now();
+
+function cleanupStaleBuckets() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS) return;
+  lastCleanup = now;
+  for (const [key, bucket] of buckets) {
+    if (now > bucket.resetAt) {
+      buckets.delete(key);
+    }
+  }
+}
+
 export function getClientIp(request: NextRequest): string {
   return extractClientIp(request.headers);
 }
@@ -17,15 +31,11 @@ export function rateLimit(
   limit: number,
   windowMs: number,
 ): boolean {
-  if (
-    !key ||
-    key.endsWith(":") ||
-    key.includes(":127.0.0.1") ||
-    key.includes(":::1") ||
-    key.includes(":localhost")
-  ) {
+  if (!key || key.endsWith(":")) {
     return true;
   }
+
+  cleanupStaleBuckets();
 
   const now = Date.now();
   const bucket = buckets.get(key);

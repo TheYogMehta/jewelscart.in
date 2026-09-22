@@ -4,7 +4,6 @@ import {
   createUser,
   findUserByEmail,
   createVerificationToken,
-  setPasswordForUser,
 } from "@/lib/auth/users";
 import { isEmailVerificationEnabled, sendVerificationEmail } from "@/lib/mail";
 import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
@@ -64,48 +63,11 @@ export async function POST(req: NextRequest) {
     const existingUser = await findUserByEmail(email);
 
     if (existingUser) {
-      if (existingUser.password_hash) {
-        return NextResponse.json(
-          {
-            error: "An account with this email already exists. Please sign in.",
-          },
-          { status: 400 },
-        );
-      }
-
-      await setPasswordForUser(existingUser.id, password, verificationEnabled);
-
-      if (verificationEnabled) {
-        try {
-          const token = await createVerificationToken(existingUser.id);
-          await sendVerificationEmail(
-            existingUser.email,
-            existingUser.name,
-            token,
-          );
-        } catch (mailError) {
-          console.error(
-            "[Register] Failed to dispatch verification email:",
-            mailError,
-          );
-        }
-      }
-
       return NextResponse.json(
         {
-          success: true,
-          requiresVerification: verificationEnabled,
-          isLinkedAccount: true,
-          message: verificationEnabled
-            ? "Your account was originally connected with Google. We sent a verification email to verify you own this address before activating password login."
-            : "Password added! You can now log in with either Google or your password.",
-          user: {
-            id: existingUser.id,
-            name: existingUser.name,
-            email: existingUser.email,
-          },
+          error: "An account with this email already exists. Please sign in.",
         },
-        { status: 200 },
+        { status: 400 },
       );
     }
 

@@ -135,3 +135,66 @@ export async function sendVerificationEmail(
     html,
   });
 }
+
+export async function sendPasswordResetEmail(
+  email: string,
+  name: string | null | undefined,
+  token: string,
+) {
+  if (!isEmailVerificationEnabled()) return;
+
+  const resetUrl = `${SITE_URL}/reset-password?token=${token}`;
+  const recipientName = name ? name.trim() : "Valued Customer";
+
+  const text = `Hello ${recipientName},\n\nWe received a request to reset the password for your JewelsCart account. Please open the following link in your browser to choose a new password:\n\n${resetUrl}\n\nThis password reset link will expire in 1 hour.\n\nIf you did not request a password reset, you can safely ignore this email. Your account remains secure.`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reset your password - JewelsCart</title>
+      </head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #fafaf9; margin: 0; padding: 40px 16px; color: #1c1917;">
+        <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e7e5e4; border-radius: 16px; padding: 36px 32px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="font-size: 26px; font-weight: 700; color: #1c1917; margin: 0;">
+              Jewels<span style="color: #c9933e;">Cart</span>
+            </h1>
+          </div>
+          
+          <h2 style="font-size: 19px; font-weight: 600; margin-top: 0; margin-bottom: 16px; color: #292524;">
+            Reset your password
+          </h2>
+
+          <p style="font-size: 14px; line-height: 1.6; color: #57534e; margin-bottom: 24px;">
+            Hello <strong>${recipientName}</strong>,<br>
+            We received a request to reset your password for your JewelsCart account. Click the button below to set a new password:
+          </p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${resetUrl}" style="display: inline-block; background-color: #1c1917; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 9999px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              Reset Password
+            </a>
+          </div>
+
+          <p style="font-size: 12px; line-height: 1.5; color: #78716c; margin-bottom: 16px;">
+            If the button above does not work, copy and paste the following link into your browser:<br>
+            <a href="${resetUrl}" style="color: #c9933e; word-break: break-all;">${resetUrl}</a>
+          </p>
+
+          <p style="font-size: 12px; color: #a8a29e; margin-top: 28px; border-top: 1px solid #f5f5f4; padding-top: 16px;">
+            This link is valid for 1 hour. If you did not request a password reset, please ignore this email or reach out to us if you have concerns.
+          </p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "Reset your JewelsCart password",
+    text,
+    html,
+  });
+}

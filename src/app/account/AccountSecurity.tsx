@@ -27,6 +27,7 @@ export function AccountSecurity({
 
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -45,6 +46,11 @@ export function AccountSecurity({
     setPasswordError(null);
     setPasswordSuccess(null);
 
+    if (hasPassword && !currentPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
+
     if (newPassword.length < 6) {
       setPasswordError("Password must be at least 6 characters long.");
       return;
@@ -60,7 +66,10 @@ export function AccountSecurity({
       const res = await fetch("/api/account/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: newPassword }),
+        body: JSON.stringify({
+          currentPassword: hasPassword ? currentPassword : undefined,
+          password: newPassword,
+        }),
       });
 
       const data = await res.json();
@@ -70,6 +79,7 @@ export function AccountSecurity({
 
       setPasswordSuccess("Password successfully updated and encrypted.");
       setHasPassword(true);
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: unknown) {
@@ -372,6 +382,28 @@ export function AccountSecurity({
                 {passwordSuccess && (
                   <div className="rounded-xl bg-emerald-50 p-3.5 text-xs font-medium text-emerald-800 border border-emerald-200">
                     {passwordSuccess}
+                  </div>
+                )}
+
+                {hasPassword && (
+                  <div>
+                    <label
+                      htmlFor="current_password"
+                      className="block text-xs font-medium text-stone-700"
+                    >
+                      Current Password
+                    </label>
+                    <input
+                      id="current_password"
+                      name="current_password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="current-password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Enter your current password"
+                      className="mt-1 w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-stone-900 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                    />
                   </div>
                 )}
 

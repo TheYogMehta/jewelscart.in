@@ -14,7 +14,7 @@ export const metadata = buildMetadata({
 });
 
 export default async function DiscoverPage() {
-  const categories = await listCategories({ showInHeaderOnly: true });
+  const categories = await listCategories({ visibleOnly: true });
 
   return (
     <div className="min-h-screen bg-[#faf8f5]">

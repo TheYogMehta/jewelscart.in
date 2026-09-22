@@ -191,13 +191,13 @@ export function CategoryTreeGraph({ initialCategories }: Props) {
   };
 
   const handleToggleVisibility = async (node: CategoryDocument) => {
-    const newStatus = !node.show_in_header;
+    const newStatus = !node.is_visible;
     setIsSaving(true);
     try {
       const res = await fetch(`/api/categories/${node.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ show_in_header: newStatus }),
+        body: JSON.stringify({ is_visible: newStatus }),
       });
 
       if (!res.ok) {
@@ -209,7 +209,7 @@ export function CategoryTreeGraph({ initialCategories }: Props) {
       ): CategoryDocument[] => {
         return list.map((item) => {
           if (item.id === node.id) {
-            return { ...item, show_in_header: newStatus };
+            return { ...item, is_visible: newStatus };
           }
           if (item.children && item.children.length > 0) {
             return { ...item, children: updateNodeVisibility(item.children) };
@@ -276,7 +276,7 @@ export function CategoryTreeGraph({ initialCategories }: Props) {
                 </span>
               )}
 
-              {!node.show_in_header && (
+              {!node.is_visible && (
                 <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 border border-amber-200/80">
                   Hidden
                 </span>
@@ -367,20 +367,20 @@ export function CategoryTreeGraph({ initialCategories }: Props) {
                 disabled={isSaving}
                 onClick={() => handleToggleVisibility(node)}
                 className={`flex h-7 w-7 items-center justify-center rounded-lg transition cursor-pointer disabled:opacity-50 ${
-                  node.show_in_header
+                  node.is_visible
                     ? "text-stone-400 hover:bg-stone-100 hover:text-stone-700"
                     : "text-amber-600 bg-amber-50 hover:bg-amber-100 hover:text-amber-800"
                 }`}
                 title={
-                  node.show_in_header
+                  node.is_visible
                     ? `Category is visible. Click to hide "${node.name}".`
                     : `Category is hidden. Click to unhide "${node.name}".`
                 }
                 aria-label={
-                  node.show_in_header ? "Hide category" : "Unhide category"
+                  node.is_visible ? "Hide category" : "Unhide category"
                 }
               >
-                {node.show_in_header ? (
+                {node.is_visible ? (
                   <svg
                     className="h-3.5 w-3.5"
                     fill="none"

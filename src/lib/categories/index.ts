@@ -13,7 +13,7 @@ export interface CategoryDocument {
   description?: string | null;
   banner_url?: string | null;
   banner_type: "image" | "video";
-  show_in_header: boolean;
+  is_visible: boolean;
   header_order: number;
   path: string;
   parent?: { id: number; name: string; slug: string } | null;
@@ -45,7 +45,7 @@ interface CategoryRow {
   description?: string | null;
   banner_url?: string | null;
   banner_type?: "image" | "video" | null;
-  show_in_header?: boolean;
+  is_visible?: boolean;
   header_order?: number;
   created_at: Date;
   updated_at: Date;
@@ -62,6 +62,7 @@ function buildCategoryHierarchy(rows: CategoryRow[]): {
   for (const r of rows) {
     const bannerUrl = r.banner_url || null;
     const bannerType = r.banner_type === "video" ? "video" : "image";
+    const isVisible = r.is_visible !== undefined ? Boolean(r.is_visible) : true;
     const doc: CategoryDocument = {
       id: r.id,
       parent_id: r.parent_id || null,
@@ -70,7 +71,7 @@ function buildCategoryHierarchy(rows: CategoryRow[]): {
       description: r.description || null,
       banner_url: bannerUrl,
       banner_type: bannerType,
-      show_in_header: Boolean(r.show_in_header),
+      is_visible: isVisible,
       header_order: r.header_order ?? 0,
       path: r.name,
       children: [],
@@ -114,9 +115,13 @@ function buildCategoryHierarchy(rows: CategoryRow[]): {
 }
 
 async function listCategoriesFromDb(
-  showInHeaderOnly: boolean = false,
-  all: boolean = false,
+  filterOptions: {
+    visibleOnly?: boolean;
+    all?: boolean;
+    limit?: number;
+  } = {},
 ): Promise<CategoryDocument[]> {
+  const { visibleOnly = false, all = false, limit } = filterOptions;
   const pool = await connectDB();
   const query = "SELECT * FROM categories ORDER BY header_order ASC, name ASC";
   const res = await pool.query(query);
@@ -124,46 +129,51 @@ async function listCategoriesFromDb(
   const { allList, tree } = buildCategoryHierarchy(res.rows);
 
   if (all) {
-    return allList;
+    const result = visibleOnly ? allList.filter((c) => c.is_visible) : allList;
+    return limit ? result.slice(0, limit) : result;
   }
 
-  if (showInHeaderOnly) {
+  if (visibleOnly) {
     const filterVisible = (nodes: CategoryDocument[]): CategoryDocument[] => {
       return nodes
-        .filter((cat) => cat.show_in_header)
+        .filter((cat) => cat.is_visible)
         .map((cat) => ({
           ...cat,
           children: cat.children ? filterVisible(cat.children) : [],
         }));
     };
-    return filterVisible(tree);
+    const filtered = filterVisible(tree);
+    return limit ? filtered.slice(0, limit) : filtered;
   }
 
-  return tree;
+  return limit ? tree.slice(0, limit) : tree;
 }
 
 const getCachedCategories = unstable_cache(
-  async (headerOnly: boolean, all: boolean) =>
-    listCategoriesFromDb(headerOnly, all),
+  async (optionsJson: string) => {
+    const options = JSON.parse(optionsJson);
+    return listCategoriesFromDb(options);
+  },
   ["list-categories"],
   { revalidate: CATEGORIES_REVALIDATE_SECONDS, tags: [CATEGORIES_CACHE_TAG] },
 );
 
 export async function listCategories(options?: {
-  showInHeaderOnly?: boolean;
+  visibleOnly?: boolean;
   fresh?: boolean;
   all?: boolean;
+  limit?: number;
 }): Promise<CategoryDocument[]> {
+  const filterOptions = {
+    visibleOnly: Boolean(options?.visibleOnly),
+    all: Boolean(options?.all),
+    limit: options?.limit,
+  };
+
   if (options?.fresh) {
-    return listCategoriesFromDb(
-      Boolean(options.showInHeaderOnly),
-      Boolean(options.all),
-    );
+    return listCategoriesFromDb(filterOptions);
   }
-  return getCachedCategories(
-    Boolean(options?.showInHeaderOnly),
-    Boolean(options?.all),
-  );
+  return getCachedCategories(JSON.stringify(filterOptions));
 }
 
 export async function listAllCategories(options?: {
@@ -259,7 +269,7 @@ export async function createCategory(data: {
   description?: string | null;
   banner_url?: string | null;
   banner_type?: "image" | "video";
-  show_in_header?: boolean;
+  is_visible?: boolean;
   header_order?: number;
 }): Promise<CategoryDocument> {
   const pool = await connectDB();
@@ -278,10 +288,12 @@ export async function createCategory(data: {
   const bannerUrl = data.banner_url || null;
   const bannerType = data.banner_type || "image";
   const parentId = data.parent_id && data.parent_id > 0 ? data.parent_id : null;
+  const isVisible =
+    data.is_visible !== undefined ? data.is_visible : parentId === null;
 
   const res = await pool.query(
     `INSERT INTO categories 
-      (parent_id, name, slug, description, banner_url, banner_type, show_in_header, header_order, created_at, updated_at)
+      (parent_id, name, slug, description, banner_url, banner_type, is_visible, header_order, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
      RETURNING *`,
     [
@@ -291,9 +303,7 @@ export async function createCategory(data: {
       data.description?.trim() || null,
       bannerUrl,
       bannerType,
-      data.show_in_header !== undefined
-        ? data.show_in_header
-        : parentId === null,
+      isVisible,
       data.header_order ?? 0,
     ],
   );
@@ -312,7 +322,7 @@ export async function updateCategory(
     description: string | null;
     banner_url: string | null;
     banner_type: "image" | "video";
-    show_in_header: boolean;
+    is_visible: boolean;
     header_order: number;
   }>,
 ): Promise<CategoryDocument | null> {
@@ -352,9 +362,9 @@ export async function updateCategory(
     values.push(data.banner_type || "image");
     sets.push(`banner_type = $${values.length}`);
   }
-  if (data.show_in_header !== undefined) {
-    values.push(data.show_in_header);
-    sets.push(`show_in_header = $${values.length}`);
+  if (data.is_visible !== undefined) {
+    values.push(data.is_visible);
+    sets.push(`is_visible = $${values.length}`);
   }
   if (data.header_order !== undefined) {
     values.push(data.header_order);
@@ -404,17 +414,21 @@ export function revalidateCategoryCache() {
 }
 
 export async function reorderCategories(
-  orderings: { id: number; header_order: number; show_in_header?: boolean }[],
+  orderings: {
+    id: number;
+    header_order: number;
+    is_visible?: boolean;
+  }[],
 ): Promise<void> {
   const pool = await connectDB();
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     for (const item of orderings) {
-      if (item.show_in_header !== undefined) {
+      if (item.is_visible !== undefined) {
         await client.query(
-          "UPDATE categories SET header_order = $1, show_in_header = $2, updated_at = NOW() WHERE id = $3",
-          [item.header_order, item.show_in_header, item.id],
+          "UPDATE categories SET header_order = $1, is_visible = $2, updated_at = NOW() WHERE id = $3",
+          [item.header_order, item.is_visible, item.id],
         );
       } else {
         await client.query(

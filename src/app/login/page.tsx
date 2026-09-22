@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useRef, useState, useCallback, useEffect } from "react";
 import { sanitizeCallbackUrl } from "@/lib/security";
@@ -15,9 +16,12 @@ function LoginContent() {
   );
   const initialError = searchParams.get("error");
   const isVerified = searchParams.get("verified") === "1";
+  const isReset = searchParams.get("reset") === "1";
   const emailParam = searchParams.get("email") ?? "";
   const defaultMode =
-    searchParams.get("mode") === "signup" && !isVerified ? "signup" : "signin";
+    searchParams.get("mode") === "signup" && !isVerified && !isReset
+      ? "signup"
+      : "signin";
 
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const [name, setName] = useState("");
@@ -32,15 +36,17 @@ function LoginContent() {
       : null,
   );
   const [successMessage, setSuccessMessage] = useState<string | null>(
-    isVerified
-      ? "Your email has been verified successfully! Please enter your password to sign in."
-      : null,
+    isReset
+      ? "Your password has been reset successfully! Please sign in with your new password."
+      : isVerified
+        ? "Your email has been verified successfully! Please enter your password to sign in."
+        : null,
   );
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
-    if (isVerified) {
+    if (isVerified || isReset) {
       if (emailParam) {
         setEmail(emailParam);
       }
@@ -50,7 +56,7 @@ function LoginContent() {
       }, 100);
       return () => clearTimeout(t);
     }
-  }, [isVerified, emailParam]);
+  }, [isVerified, isReset, emailParam]);
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -316,12 +322,22 @@ function LoginContent() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-xs font-semibold text-stone-700 uppercase tracking-wider"
-            >
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="password"
+                className="block text-xs font-semibold text-stone-700 uppercase tracking-wider"
+              >
+                Password
+              </label>
+              {mode === "signin" && (
+                <Link
+                  href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+                  className="text-xs font-medium text-stone-500 hover:text-stone-900 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              )}
+            </div>
             <input
               ref={passwordInputRef}
               id="password"

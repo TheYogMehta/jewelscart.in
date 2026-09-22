@@ -67,7 +67,7 @@ export function extractClientIp(
     }
   }
 
-  return "";
+  return "unknown";
 }
 
 export function resolveLocationFromHeaders(

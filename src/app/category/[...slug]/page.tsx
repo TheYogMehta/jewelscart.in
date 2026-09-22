@@ -184,7 +184,7 @@ export default async function CategoryPage({
     matchedSub && matchedSub.children && matchedSub.children.length > 0;
   const carouselItems = (
     showChildCarousel ? matchedSub.children! : category.children || []
-  ).filter((item: CategoryDocument) => item.show_in_header);
+  ).filter((item: CategoryDocument) => item.is_visible);
 
   const breadcrumbs = [
     {
@@ -268,10 +268,7 @@ export default async function CategoryPage({
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
             {filteredProducts.map((product) => (
-              <ProductCard
-                key={product._id || product.id}
-                product={product}
-              />
+              <ProductCard key={product._id || product.id} product={product} />
             ))}
           </div>
         ) : (

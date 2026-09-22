@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { setPasswordForUser, findUserByEmail } from "@/lib/auth/users";
+import {
+  setPasswordForUser,
+  findUserByEmail,
+  verifyPassword,
+} from "@/lib/auth/users";
 import { logActivity } from "@/lib/logs";
 import { verifySameOrigin } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
 const passwordSchema = z.object({
+  currentPassword: z.string().optional(),
   password: z
     .string()
     .min(6, "Password must be at least 6 characters")
@@ -37,8 +42,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Set password without resetting verification status for active session
-    await setPasswordForUser(user.id, parsed.data.password, false);
+    if (user.password_hash) {
+      if (!parsed.data.currentPassword) {
+        return NextResponse.json(
+          { error: "Current password is required to change password." },
+          { status: 400 },
+        );
+      }
+
+      const isCurrentValid = verifyPassword(
+        parsed.data.currentPassword,
+        user.password_hash,
+      );
+      if (!isCurrentValid) {
+        return NextResponse.json(
+          { error: "Incorrect current password. Please try again." },
+          { status: 400 },
+        );
+      }
+    }
+
+    await setPasswordForUser(user.id, parsed.data.password);
 
     await logActivity({
       action: "password_update",

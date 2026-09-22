@@ -104,7 +104,7 @@ export default async function ProductPage({ params }: Props) {
             {product.price != null && (
               <div className="mt-3 flex flex-wrap items-baseline gap-3">
                 <span className="font-display text-2xl font-semibold text-stone-900">
-                  /- ₹{product.price.toLocaleString("en-IN")}
+                  ₹{product.price.toLocaleString("en-IN")} /-
                 </span>
                 <span className="text-xs font-normal text-stone-400">
                   (Inclusive of all taxes)
