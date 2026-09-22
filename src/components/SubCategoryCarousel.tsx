@@ -33,8 +33,8 @@ export function SubCategoryCarousel({
 
   const allCardHref =
     isChildLevel && parentSubSlug
-      ? `/category/${categorySlug}/${parentSubSlug}#collection-grid`
-      : `/category/${categorySlug}#collection-grid`;
+      ? `/category/${categorySlug}/${parentSubSlug}`
+      : `/category/${categorySlug}`;
 
   const isAllActive = isChildLevel ? !activeChild : !activeSub;
   const allLabel =
@@ -85,8 +85,8 @@ export function SubCategoryCarousel({
 
           const href =
             isChildLevel && parentSubSlug
-              ? `/category/${categorySlug}/${parentSubSlug}/${item.slug}#collection-grid`
-              : `/category/${categorySlug}/${item.slug}#collection-grid`;
+              ? `/category/${categorySlug}/${parentSubSlug}/${item.slug}`
+              : `/category/${categorySlug}/${item.slug}`;
 
           return (
             <Link

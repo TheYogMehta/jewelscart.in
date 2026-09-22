@@ -299,7 +299,7 @@ export default async function CategoryPage({
             <div className="mt-6 flex justify-center gap-3">
               {activeFilterName && (
                 <Link
-                  href={`/category/${category.slug}#collection-grid`}
+                  href={`/category/${category.slug}`}
                   className="rounded-full bg-stone-900 px-5 py-2 text-xs font-medium text-white transition hover:bg-stone-800"
                 >
                   All {category.name}
