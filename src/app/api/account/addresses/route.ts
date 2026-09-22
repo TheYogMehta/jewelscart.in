@@ -7,7 +7,6 @@ import {
   addressSchema,
 } from "@/lib/addresses";
 import { validatePostalCodeMatch } from "@/lib/location";
-import { logActivity } from "@/lib/logs";
 import { verifySameOrigin } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
@@ -77,23 +76,6 @@ export async function POST(request: Request) {
     }
 
     const newAddress = await createAddress(user.id, parsed.data);
-
-    await logActivity({
-      action: "address_create",
-      actorId: user.id,
-      actorEmail: user.email,
-      actorName: user.name,
-      targetType: "address",
-      targetId: String(newAddress.id),
-      targetName: `${newAddress.full_name} (${newAddress.address_type})`,
-      details: {
-        city: newAddress.city,
-        state: newAddress.state,
-        postal_code: newAddress.postal_code,
-        is_default: newAddress.is_default,
-      },
-      request,
-    });
 
     return NextResponse.json({
       ok: true,

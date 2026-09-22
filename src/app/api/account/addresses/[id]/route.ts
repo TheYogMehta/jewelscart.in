@@ -8,7 +8,6 @@ import {
   addressSchema,
 } from "@/lib/addresses";
 import { validatePostalCodeMatch } from "@/lib/location";
-import { logActivity } from "@/lib/logs";
 import { verifySameOrigin } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
@@ -61,22 +60,6 @@ export async function PUT(
 
     const updated = await updateAddress(user.id, addressId, parsed.data);
 
-    await logActivity({
-      action: "address_update",
-      actorId: user.id,
-      actorEmail: user.email,
-      actorName: user.name,
-      targetType: "address",
-      targetId: String(updated.id),
-      targetName: `${updated.full_name} (${updated.address_type})`,
-      details: {
-        city: updated.city,
-        state: updated.state,
-        postal_code: updated.postal_code,
-      },
-      request,
-    });
-
     return NextResponse.json({
       ok: true,
       address: updated,
@@ -128,22 +111,6 @@ export async function DELETE(
         { status: 400 },
       );
     }
-
-    await logActivity({
-      action: "address_delete",
-      actorId: user.id,
-      actorEmail: user.email,
-      actorName: user.name,
-      targetType: "address",
-      targetId: String(addressId),
-      targetName: `${existing.full_name} (${existing.address_type})`,
-      details: {
-        city: existing.city,
-        state: existing.state,
-        postal_code: existing.postal_code,
-      },
-      request,
-    });
 
     return NextResponse.json({
       ok: true,

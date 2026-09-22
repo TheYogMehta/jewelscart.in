@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { findUserByEmail } from "@/lib/auth/users";
 import { setDefaultAddress, getAddressById } from "@/lib/addresses";
-import { logActivity } from "@/lib/logs";
 import { verifySameOrigin } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
@@ -38,22 +37,6 @@ export async function PATCH(
     }
 
     const updated = await setDefaultAddress(user.id, addressId);
-
-    await logActivity({
-      action: "address_set_default",
-      actorId: user.id,
-      actorEmail: user.email,
-      actorName: user.name,
-      targetType: "address",
-      targetId: String(updated.id),
-      targetName: `${updated.full_name} (${updated.address_type})`,
-      details: {
-        city: updated.city,
-        state: updated.state,
-        postal_code: updated.postal_code,
-      },
-      request,
-    });
 
     return NextResponse.json({
       ok: true,
