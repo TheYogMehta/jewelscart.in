@@ -25,11 +25,11 @@ export default async function HomePage() {
 
   try {
     const [p, c, cnt] = await Promise.all([
-      listProducts({ limit: 12 }),
+      listProducts({ limit: 4 }),
       listCategories({ showInHeaderOnly: true }),
       getPageContent("home"),
     ]);
-    products = p;
+    products = p.slice(0, 4);
     categories = c;
     if (cnt) content = cnt;
   } catch {
