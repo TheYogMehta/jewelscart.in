@@ -27,22 +27,27 @@ export async function POST(request: Request) {
     }
 
     const session = await auth();
-    const userId = session?.user?.id
-      ? parseInt(String(session.user.id), 10)
-      : null;
+    const rawUserId = session?.user?.id;
+    const userId =
+      rawUserId && !isNaN(Number(rawUserId)) && Number(rawUserId) > 0
+        ? Number(rawUserId)
+        : null;
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          error:
+            "Unauthorized. Only registered members can reserve cart items.",
+        },
+        { status: 401 },
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const releaseSessionId = searchParams.get("sessionId");
     if (searchParams.get("action") === "release" && releaseSessionId) {
-      if (!userId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
       await releaseReservationForUser(releaseSessionId, userId);
       return NextResponse.json({ success: true });
-    }
-
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -90,12 +95,20 @@ export async function DELETE(request: Request) {
     }
 
     const session = await auth();
-    const userId = session?.user?.id
-      ? parseInt(String(session.user.id), 10)
-      : null;
+    const rawUserId = session?.user?.id;
+    const userId =
+      rawUserId && !isNaN(Number(rawUserId)) && Number(rawUserId) > 0
+        ? Number(rawUserId)
+        : null;
 
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error:
+            "Unauthorized. Only registered members can manage reservations.",
+        },
+        { status: 401 },
+      );
     }
 
     const { searchParams } = new URL(request.url);

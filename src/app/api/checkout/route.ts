@@ -41,8 +41,17 @@ export async function POST(request: Request) {
     }
 
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const rawUserId = session?.user?.id;
+    const userId =
+      rawUserId && !isNaN(Number(rawUserId)) && Number(rawUserId) > 0
+        ? Number(rawUserId)
+        : null;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized. Members only." },
+        { status: 401 },
+      );
     }
 
     const body = await request.json();
@@ -59,7 +68,7 @@ export async function POST(request: Request) {
 
     const reserveResult = await reserveCartItems(
       sessionId,
-      parseInt(String(session.user.id)),
+      userId,
       items.map((item) => ({
         productId: parseInt(item.productId),
         quantity: item.quantity,
@@ -107,7 +116,7 @@ export async function POST(request: Request) {
         currency: "INR",
         receipt: sessionId,
         notes: {
-          user_email: session.user.email || "",
+          user_email: session?.user?.email || "",
           delivery_city: deliveryAddress.city,
         },
       }),

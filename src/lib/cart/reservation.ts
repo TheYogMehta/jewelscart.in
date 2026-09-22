@@ -12,7 +12,7 @@ export async function releaseExpiredReservations(): Promise<number> {
 
 export async function reserveCartItems(
   sessionId: string,
-  userId: number | null,
+  userId: number,
   items: { productId: number; quantity: number }[],
 ): Promise<{
   success: boolean;
@@ -25,6 +25,12 @@ export async function reserveCartItems(
   sessionId: string;
   expiresAt: string;
 }> {
+  if (!userId || typeof userId !== "number" || userId <= 0) {
+    throw new Error(
+      "Only authenticated members with a valid userId can reserve cart items",
+    );
+  }
+
   await releaseExpiredReservations();
 
   const db = await connectDB();

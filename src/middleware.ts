@@ -47,11 +47,23 @@ export default auth((request) => {
     if (ip && !rateLimit(`checkout:${ip}`, 5, 60_000)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
+    if (!request.auth?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized. Members only." },
+        { status: 401 },
+      );
+    }
   }
 
   if (pathname.startsWith("/api/cart/reserve")) {
     if (ip && !rateLimit(`cart-reserve:${ip}`, 10, 60_000)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+    if (!request.auth?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized. Members only." },
+        { status: 401 },
+      );
     }
   }
 

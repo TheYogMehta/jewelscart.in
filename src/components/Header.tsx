@@ -47,9 +47,12 @@ export function Header() {
     setUserMenuOpen(false);
   }, [pathname]);
 
+  const setDeliveryAddress = useCartStore((state) => state.setDeliveryAddress);
+
   const handleSignOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
+    setDeliveryAddress(null);
     window.dispatchEvent(new CustomEvent("app:loading-start"));
     try {
       await signOut({ callbackUrl: "/" });

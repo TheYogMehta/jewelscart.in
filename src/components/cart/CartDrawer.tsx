@@ -64,6 +64,14 @@ export function CartDrawer() {
   }, [isPickerOpen]);
 
   useEffect(() => {
+    if (!session?.user && sessionStatus === "unauthenticated") {
+      setSavedAddresses([]);
+      if (deliveryAddress) {
+        setDeliveryAddress(null);
+      }
+      return;
+    }
+
     if (!isOpen) return;
 
     if (session?.user) {
@@ -93,14 +101,16 @@ export function CartDrawer() {
           console.warn("Could not fetch addresses:", err);
         });
     }
-  }, [isOpen, session, deliveryAddress, setDeliveryAddress]);
+  }, [isOpen, session, sessionStatus, deliveryAddress, setDeliveryAddress]);
 
   const handleCloseCart = () => {
     if (reservationSessionId) {
-      fetch(
-        `/api/cart/reserve?sessionId=${encodeURIComponent(reservationSessionId)}`,
-        { method: "DELETE" },
-      ).catch(() => {});
+      if (session?.user) {
+        fetch(
+          `/api/cart/reserve?sessionId=${encodeURIComponent(reservationSessionId)}`,
+          { method: "DELETE" },
+        ).catch(() => {});
+      }
       clearReservation();
     }
     setIsCheckingOut(false);
@@ -116,11 +126,11 @@ export function CartDrawer() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, reservationSessionId]);
+  }, [isOpen, reservationSessionId, session]);
 
   useEffect(() => {
     const handleExit = () => {
-      if (reservationSessionId) {
+      if (reservationSessionId && session?.user) {
         if (navigator.sendBeacon) {
           navigator.sendBeacon(
             `/api/cart/reserve?action=release&sessionId=${encodeURIComponent(reservationSessionId)}`,
@@ -144,7 +154,7 @@ export function CartDrawer() {
       window.removeEventListener("pagehide", handleExit);
       window.removeEventListener("beforeunload", handleExit);
     };
-  }, [reservationSessionId]);
+  }, [reservationSessionId, session]);
 
   // Lock body scroll when cart is open
   useEffect(() => {
@@ -762,149 +772,147 @@ export function CartDrawer() {
 
         {/* Order Summary & Checkout Bottom Panel */}
         {items.length > 0 && (
-            <div className="border-t border-stone-200 bg-stone-50/90 p-6">
-              {/* Reservation Timer */}
-              {timeLeft > 0 && (
-                <div
-                  className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-medium ${
-                    timeLeft <= 60
-                      ? "border-red-200 bg-red-50 text-red-800"
-                      : timeLeft <= 180
-                        ? "border-amber-200 bg-amber-50 text-amber-800"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  }`}
+          <div className="border-t border-stone-200 bg-stone-50/90 p-6">
+            {/* Reservation Timer */}
+            {timeLeft > 0 && (
+              <div
+                className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-medium ${
+                  timeLeft <= 60
+                    ? "border-red-200 bg-red-50 text-red-800"
+                    : timeLeft <= 180
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                }`}
+              >
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
                 >
-                  <svg
-                    className="h-4 w-4 shrink-0"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>
-                    Items reserved for{" "}
-                    <strong>
-                      {Math.floor(timeLeft / 60)}:
-                      {String(timeLeft % 60).padStart(2, "0")}
-                    </strong>
-                  </span>
-                </div>
-              )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>
+                  Items reserved for{" "}
+                  <strong>
+                    {Math.floor(timeLeft / 60)}:
+                    {String(timeLeft % 60).padStart(2, "0")}
+                  </strong>
+                </span>
+              </div>
+            )}
 
-              {/* Checkout Error */}
-              {checkoutError && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-800">
-                  {checkoutError}
-                </div>
-              )}
+            {/* Checkout Error */}
+            {checkoutError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-800">
+                {checkoutError}
+              </div>
+            )}
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-stone-600">
-                  <span>Items Subtotal</span>
-                  <span className="font-medium text-stone-900">
-                    ₹{subtotal.toLocaleString("en-IN")}
-                  </span>
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-stone-600">
+                <span>Items Subtotal</span>
+                <span className="font-medium text-stone-900">
+                  ₹{subtotal.toLocaleString("en-IN")}
+                </span>
+              </div>
 
-                <div className="flex items-center justify-between text-xs text-stone-600">
-                  <div className="flex flex-col">
-                    <span>Shipping Fee</span>
-                    {deliveryAddress && (
-                      <span className="text-[10px] text-stone-400">
-                        {shipping.label}
-                      </span>
-                    )}
-                  </div>
-                  {deliveryAddress ? (
-                    <span
-                      className={`font-medium ${shipping.fee === 0 ? "text-emerald-700" : "text-stone-900"}`}
-                    >
-                      {shipping.fee === 0 ? "FREE" : `₹${shipping.fee}`}
-                    </span>
-                  ) : isFreeShipping ? (
-                    <span className="font-medium text-emerald-700">FREE</span>
-                  ) : (
-                    <span className="text-stone-400 text-xs font-normal">
-                      —
+              <div className="flex items-center justify-between text-xs text-stone-600">
+                <div className="flex flex-col">
+                  <span>Shipping Fee</span>
+                  {deliveryAddress && (
+                    <span className="text-[10px] text-stone-400">
+                      {shipping.label}
                     </span>
                   )}
                 </div>
-
-                {/* Total Amount Row */}
-                <div className="flex items-center justify-between border-t border-stone-200/80 pt-2.5 text-sm font-semibold text-stone-900">
-                  <div className="flex flex-col">
-                    <span>Total Amount</span>
-                    {!deliveryAddress && !isFreeShipping && (
-                      <span className="text-[10px] text-stone-400 font-normal">
-                        (Excl. shipping until address is added)
-                      </span>
-                    )}
-                  </div>
-                  <span className="font-display text-xl text-stone-900">
-                    ₹{totalDue.toLocaleString("en-IN")}
+                {deliveryAddress ? (
+                  <span
+                    className={`font-medium ${shipping.fee === 0 ? "text-emerald-700" : "text-stone-900"}`}
+                  >
+                    {shipping.fee === 0 ? "FREE" : `₹${shipping.fee}`}
                   </span>
-                </div>
-
-                <p className="text-[11px] text-stone-400">
-                  Inclusive of all taxes &amp; door-to-door transit insurance.
-                </p>
+                ) : isFreeShipping ? (
+                  <span className="font-medium text-emerald-700">FREE</span>
+                ) : (
+                  <span className="text-stone-400 text-xs font-normal">—</span>
+                )}
               </div>
 
-              <button
-                type="button"
-                onClick={
-                  deliveryAddress ? handleCheckout : handleRedirectToAddAddress
-                }
-                disabled={isCheckingOut}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-gold-light disabled:opacity-50 transition active:scale-98 cursor-pointer"
-              >
-                {isCheckingOut ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Preparing Gateway...</span>
-                  </>
-                ) : !deliveryAddress ? (
-                  <>
-                    <svg
-                      className="h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                    <span>Add Delivery Address to Proceed</span>
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect width="20" height="14" x="2" y="5" rx="2" />
-                      <line x1="2" x2="22" y1="10" y2="10" />
-                    </svg>
-                    <span>
-                      Pay ₹{totalDue.toLocaleString("en-IN")} with Razorpay
+              {/* Total Amount Row */}
+              <div className="flex items-center justify-between border-t border-stone-200/80 pt-2.5 text-sm font-semibold text-stone-900">
+                <div className="flex flex-col">
+                  <span>Total Amount</span>
+                  {!deliveryAddress && !isFreeShipping && (
+                    <span className="text-[10px] text-stone-400 font-normal">
+                      (Excl. shipping until address is added)
                     </span>
-                  </>
-                )}
-              </button>
+                  )}
+                </div>
+                <span className="font-display text-xl text-stone-900">
+                  ₹{totalDue.toLocaleString("en-IN")}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-stone-400">
+                Inclusive of all taxes &amp; door-to-door transit insurance.
+              </p>
             </div>
-          )}
+
+            <button
+              type="button"
+              onClick={
+                deliveryAddress ? handleCheckout : handleRedirectToAddAddress
+              }
+              disabled={isCheckingOut}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-gold-light disabled:opacity-50 transition active:scale-98 cursor-pointer"
+            >
+              {isCheckingOut ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Preparing Gateway...</span>
+                </>
+              ) : !deliveryAddress ? (
+                <>
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <span>Add Delivery Address to Proceed</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect width="20" height="14" x="2" y="5" rx="2" />
+                    <line x1="2" x2="22" y1="10" y2="10" />
+                  </svg>
+                  <span>
+                    Pay ₹{totalDue.toLocaleString("en-IN")} with Razorpay
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );
