@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -14,10 +15,17 @@ import {
 } from "recharts";
 import { AnalyticsOverview } from "@/lib/analytics";
 
-interface Props {
+interface AdminDashboardProps {
   overview: AnalyticsOverview;
   userName?: string;
 }
+
+const DEVICE_COLORS = {
+  desktop: "#1c1917",
+  mobile: "#b8860b",
+  tablet: "#78716c",
+  anonymous: "#a8a29e",
+};
 
 function formatDuration(seconds: number): string {
   if (!seconds || seconds <= 0) return "0s";
@@ -27,14 +35,7 @@ function formatDuration(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-const DEVICE_COLORS = {
-  desktop: "#1c1917", // stone-900
-  mobile: "#b8860b", // gold
-  tablet: "#78716c", // stone-500
-  anonymous: "#a8a29e", // stone-400
-};
-
-export function AnalyticsDashboard({ overview, userName }: Props) {
+export function AdminDashboard({ overview, userName }: AdminDashboardProps) {
   const {
     totalVisits,
     uniqueVisitors,
@@ -114,7 +115,7 @@ export function AnalyticsDashboard({ overview, userName }: Props) {
     : [{ name: "No Data", value: 1, color: "#e7e5e4", percent: 0 }];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       {/* Header */}
       <div>
         {userName && (
@@ -123,10 +124,11 @@ export function AnalyticsDashboard({ overview, userName }: Props) {
           </p>
         )}
         <h1 className="font-display text-2xl font-semibold text-stone-900 sm:text-3xl">
-          Analytics
+          Dashboard
         </h1>
       </div>
 
+      {/* Analytics Stats Row */}
       <div className="grid grid-cols-2 gap-y-8 gap-x-6 sm:grid-cols-2 lg:grid-cols-4 border-y border-stone-200/80 py-7">
         {/* Total Views */}
         <div className="space-y-1">

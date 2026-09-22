@@ -91,6 +91,14 @@ const CATEGORY_ACTION_MAP: Record<string, string[]> = {
     "category_update",
     "category_delete",
   ],
+  orders: [
+    "order_placed",
+    "order_status_update",
+    "order_tracking_set",
+    "order_refund",
+    "order_cancelled",
+    "order_tracking_email_sent",
+  ],
   security: ["user_login", "password_change"],
   users: ["user_update", "user_delete", "password_change"],
 };

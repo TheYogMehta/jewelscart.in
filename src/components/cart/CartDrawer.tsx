@@ -18,7 +18,7 @@ import type { AddressRecord } from "@/lib/addresses";
 export function CartDrawer() {
   const hydrated = useCartHydrated();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
   const isOpen = useCartStore((state) => state.isOpen);
   const closeCart = useCartStore((state) => state.closeCart);
@@ -30,10 +30,20 @@ export function CartDrawer() {
   const getItemCount = useCartStore((state) => state.getItemCount);
   const deliveryAddress = useCartStore((state) => state.deliveryAddress);
   const setDeliveryAddress = useCartStore((state) => state.setDeliveryAddress);
+  const reservationExpiresAt = useCartStore(
+    (state) => state.reservationExpiresAt,
+  );
+  const reservationSessionId = useCartStore(
+    (state) => state.reservationSessionId,
+  );
+  const setReservation = useCartStore((state) => state.setReservation);
+  const clearReservation = useCartStore((state) => state.clearReservation);
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<AddressRecord[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -85,16 +95,56 @@ export function CartDrawer() {
     }
   }, [isOpen, session, deliveryAddress, setDeliveryAddress]);
 
+  const handleCloseCart = () => {
+    if (reservationSessionId) {
+      fetch(
+        `/api/cart/reserve?sessionId=${encodeURIComponent(reservationSessionId)}`,
+        { method: "DELETE" },
+      ).catch(() => {});
+      clearReservation();
+    }
+    setIsCheckingOut(false);
+    closeCart();
+  };
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
-        closeCart();
+        handleCloseCart();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, closeCart]);
+  }, [isOpen, reservationSessionId]);
+
+  useEffect(() => {
+    const handleExit = () => {
+      if (reservationSessionId) {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(
+            `/api/cart/reserve?action=release&sessionId=${encodeURIComponent(reservationSessionId)}`,
+          );
+        } else {
+          fetch(
+            `/api/cart/reserve?sessionId=${encodeURIComponent(reservationSessionId)}`,
+            {
+              method: "DELETE",
+              keepalive: true,
+            },
+          ).catch(() => {});
+        }
+      }
+    };
+
+    window.addEventListener("pagehide", handleExit);
+    window.addEventListener("beforeunload", handleExit);
+
+    return () => {
+      window.removeEventListener("pagehide", handleExit);
+      window.removeEventListener("beforeunload", handleExit);
+    };
+  }, [reservationSessionId]);
 
   // Lock body scroll when cart is open
   useEffect(() => {
@@ -106,6 +156,32 @@ export function CartDrawer() {
     return () => {
       document.body.style.overflow = "";
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!reservationExpiresAt) {
+      setTimeLeft(0);
+      return;
+    }
+    const tick = () => {
+      const remaining = Math.max(
+        0,
+        Math.floor((reservationExpiresAt - Date.now()) / 1000),
+      );
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearReservation();
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [reservationExpiresAt, clearReservation]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCheckoutError(null);
+    }
   }, [isOpen]);
 
   if (!hydrated) return null;
@@ -135,7 +211,7 @@ export function CartDrawer() {
   };
 
   const handleRedirectToAddAddress = () => {
-    closeCart();
+    handleCloseCart();
     setIsPickerOpen(false);
     if (session?.user) {
       router.push("/account#addresses");
@@ -147,51 +223,150 @@ export function CartDrawer() {
   const handleCheckout = async () => {
     if (items.length === 0) return;
 
+    if (sessionStatus === "loading") {
+      return;
+    }
+
+    if (!session?.user) {
+      handleCloseCart();
+      const currentPath =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "/";
+      router.push(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+
     if (!deliveryAddress) {
       handleRedirectToAddAddress();
       return;
     }
 
     setIsCheckingOut(true);
+    setCheckoutError(null);
 
     try {
-      const amountInPaise = Math.round(totalDue * 100);
+      const sessionId =
+        reservationSessionId ||
+        `cs_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+      const checkoutRes = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            productId: item.productId || item.id,
+            name: item.name,
+            slug: item.slug,
+            image: item.image,
+            sku: item.sku || "",
+            price: item.price,
+            quantity: item.quantity,
+          })),
+          deliveryAddress,
+          sessionId,
+        }),
+      });
+
+      const checkoutData = await checkoutRes.json();
+
+      if (!checkoutRes.ok) {
+        setCheckoutError(checkoutData.error || "Failed to initiate checkout");
+        setIsCheckingOut(false);
+        return;
+      }
+
+      setReservation(sessionId, new Date(checkoutData.expiresAt).getTime());
 
       await startRazorpayCheckout({
-        amount: amountInPaise,
+        amount: checkoutData.amount,
         currency: "INR",
         name: "JewelsCart",
         description: `Order of ${totalCount} item${totalCount > 1 ? "s" : ""} to ${deliveryAddress.city}`,
+        order_id: checkoutData.razorpayOrderId,
         prefill: {
           name: deliveryAddress.fullName,
           contact: deliveryAddress.phone,
+          email: session.user.email || "",
         },
-        notes: {
-          delivery_name: deliveryAddress.fullName,
-          delivery_phone: deliveryAddress.phone,
-          delivery_address: `${deliveryAddress.addressLine1}${
-            deliveryAddress.addressLine2
-              ? ", " + deliveryAddress.addressLine2
-              : ""
-          }, ${deliveryAddress.city}, ${deliveryAddress.state} - ${deliveryAddress.pincode}`,
-          shipping_fee: String(shippingFee ?? 0),
+        handler: async function (response) {
+          try {
+            const verifyRes = await fetch("/api/checkout/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                items: items.map((item) => ({
+                  productId: item.productId || item.id,
+                  name: item.name,
+                  slug: item.slug,
+                  image: item.image,
+                  sku: item.sku || "",
+                  price: item.price,
+                  quantity: item.quantity,
+                })),
+                deliveryAddress,
+                sessionId,
+                subtotal,
+                shippingFee: shippingFee ?? 0,
+                totalAmount: totalDue,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              clearCart();
+              clearReservation();
+              closeCart();
+              router.push(
+                `/order-confirmation/${encodeURIComponent(verifyData.order.orderNumber)}`,
+              );
+            } else {
+              setCheckoutError(
+                verifyData.error || "Payment verification failed",
+              );
+            }
+          } catch {
+            setCheckoutError(
+              "Payment verification failed. Please contact support.",
+            );
+          } finally {
+            setIsCheckingOut(false);
+          }
         },
-        handler: function (response) {
-          alert(
-            `Payment successful! Payment ID: ${response.razorpay_payment_id}`,
+        onPaymentFailed: (response: any) => {
+          setIsCheckingOut(false);
+          setCheckoutError(
+            response?.error?.description ||
+              "Payment could not be completed. Reservation cancelled.",
           );
-          clearCart();
-          closeCart();
+          if (sessionId) {
+            fetch(
+              `/api/cart/reserve?sessionId=${encodeURIComponent(sessionId)}`,
+              { method: "DELETE" },
+            ).catch(() => {});
+            clearReservation();
+          }
         },
         modal: {
           ondismiss: () => {
             setIsCheckingOut(false);
+            if (sessionId) {
+              fetch(
+                `/api/cart/reserve?sessionId=${encodeURIComponent(sessionId)}`,
+                { method: "DELETE" },
+              ).catch(() => {});
+              clearReservation();
+            }
           },
         },
       });
     } catch (error) {
-      console.error("Razorpay checkout failed:", error);
-    } finally {
+      console.error("Checkout failed:", error);
+      setCheckoutError("Something went wrong. Please try again.");
       setIsCheckingOut(false);
     }
   };
@@ -214,7 +389,7 @@ export function CartDrawer() {
       {/* Backdrop */}
       <div
         aria-hidden="true"
-        onClick={closeCart}
+        onClick={handleCloseCart}
         className={`fixed inset-0 z-50 bg-stone-950/45 transition-opacity duration-300 ease-out ${
           isOpen
             ? "opacity-100 pointer-events-auto"
@@ -368,7 +543,7 @@ export function CartDrawer() {
 
             <button
               type="button"
-              onClick={closeCart}
+              onClick={handleCloseCart}
               aria-label="Close bag"
               className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition cursor-pointer shrink-0"
             >
@@ -587,106 +762,149 @@ export function CartDrawer() {
 
         {/* Order Summary & Checkout Bottom Panel */}
         {items.length > 0 && (
-          <div className="border-t border-stone-200 bg-stone-50/90 p-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-stone-600">
-                <span>Items Subtotal</span>
-                <span className="font-medium text-stone-900">
-                  ₹{subtotal.toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs text-stone-600">
-                <div className="flex flex-col">
-                  <span>Shipping Fee</span>
-                  {deliveryAddress && (
-                    <span className="text-[10px] text-stone-400">
-                      {shipping.label}
-                    </span>
-                  )}
-                </div>
-                {deliveryAddress ? (
-                  <span
-                    className={`font-medium ${shipping.fee === 0 ? "text-emerald-700" : "text-stone-900"}`}
-                  >
-                    {shipping.fee === 0 ? "FREE" : `₹${shipping.fee}`}
-                  </span>
-                ) : isFreeShipping ? (
-                  <span className="font-medium text-emerald-700">FREE</span>
-                ) : (
-                  <span className="text-stone-400 text-xs font-normal">—</span>
-                )}
-              </div>
-
-              {/* Total Amount Row */}
-              <div className="flex items-center justify-between border-t border-stone-200/80 pt-2.5 text-sm font-semibold text-stone-900">
-                <div className="flex flex-col">
-                  <span>Total Amount</span>
-                  {!deliveryAddress && !isFreeShipping && (
-                    <span className="text-[10px] text-stone-400 font-normal">
-                      (Excl. shipping until address is added)
-                    </span>
-                  )}
-                </div>
-                <span className="font-display text-xl text-stone-900">
-                  ₹{totalDue.toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              <p className="text-[11px] text-stone-400">
-                Inclusive of all taxes &amp; door-to-door transit insurance.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={
-                deliveryAddress ? handleCheckout : handleRedirectToAddAddress
-              }
-              disabled={isCheckingOut}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-gold-light disabled:opacity-50 transition active:scale-98 cursor-pointer"
-            >
-              {isCheckingOut ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  <span>Preparing Gateway...</span>
-                </>
-              ) : !deliveryAddress ? (
-                <>
+            <div className="border-t border-stone-200 bg-stone-50/90 p-6">
+              {/* Reservation Timer */}
+              {timeLeft > 0 && (
+                <div
+                  className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-medium ${
+                    timeLeft <= 60
+                      ? "border-red-200 bg-red-50 text-red-800"
+                      : timeLeft <= 180
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  }`}
+                >
                   <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
+                    className="h-4 w-4 shrink-0"
                     fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  <span>Add Delivery Address to Proceed</span>
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="h-4 w-4"
                     viewBox="0 0 24 24"
-                    fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    strokeWidth={2}
                   >
-                    <rect width="20" height="14" x="2" y="5" rx="2" />
-                    <line x1="2" x2="22" y1="10" y2="10" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   <span>
-                    Pay ₹{totalDue.toLocaleString("en-IN")} with Razorpay
+                    Items reserved for{" "}
+                    <strong>
+                      {Math.floor(timeLeft / 60)}:
+                      {String(timeLeft % 60).padStart(2, "0")}
+                    </strong>
                   </span>
-                </>
+                </div>
               )}
-            </button>
-          </div>
-        )}
+
+              {/* Checkout Error */}
+              {checkoutError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-800">
+                  {checkoutError}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-stone-600">
+                  <span>Items Subtotal</span>
+                  <span className="font-medium text-stone-900">
+                    ₹{subtotal.toLocaleString("en-IN")}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-stone-600">
+                  <div className="flex flex-col">
+                    <span>Shipping Fee</span>
+                    {deliveryAddress && (
+                      <span className="text-[10px] text-stone-400">
+                        {shipping.label}
+                      </span>
+                    )}
+                  </div>
+                  {deliveryAddress ? (
+                    <span
+                      className={`font-medium ${shipping.fee === 0 ? "text-emerald-700" : "text-stone-900"}`}
+                    >
+                      {shipping.fee === 0 ? "FREE" : `₹${shipping.fee}`}
+                    </span>
+                  ) : isFreeShipping ? (
+                    <span className="font-medium text-emerald-700">FREE</span>
+                  ) : (
+                    <span className="text-stone-400 text-xs font-normal">
+                      —
+                    </span>
+                  )}
+                </div>
+
+                {/* Total Amount Row */}
+                <div className="flex items-center justify-between border-t border-stone-200/80 pt-2.5 text-sm font-semibold text-stone-900">
+                  <div className="flex flex-col">
+                    <span>Total Amount</span>
+                    {!deliveryAddress && !isFreeShipping && (
+                      <span className="text-[10px] text-stone-400 font-normal">
+                        (Excl. shipping until address is added)
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-display text-xl text-stone-900">
+                    ₹{totalDue.toLocaleString("en-IN")}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-stone-400">
+                  Inclusive of all taxes &amp; door-to-door transit insurance.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  deliveryAddress ? handleCheckout : handleRedirectToAddAddress
+                }
+                disabled={isCheckingOut}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-gold-light disabled:opacity-50 transition active:scale-98 cursor-pointer"
+              >
+                {isCheckingOut ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Preparing Gateway...</span>
+                  </>
+                ) : !deliveryAddress ? (
+                  <>
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <span>Add Delivery Address to Proceed</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect width="20" height="14" x="2" y="5" rx="2" />
+                      <line x1="2" x2="22" y1="10" y2="10" />
+                    </svg>
+                    <span>
+                      Pay ₹{totalDue.toLocaleString("en-IN")} with Razorpay
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
       </aside>
     </>
   );

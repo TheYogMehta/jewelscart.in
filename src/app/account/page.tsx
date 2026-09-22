@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { findUserByEmail, getActiveUserCached } from "@/lib/auth/users";
 import { getAddressesByUserId } from "@/lib/addresses";
+import { getOrdersByUserId } from "@/lib/orders";
 import { buildMetadata } from "@/lib/seo";
 import { redirect } from "next/navigation";
 import { AccountDashboard } from "./AccountDashboard";
@@ -56,7 +57,10 @@ export default async function AccountPage() {
       })
     : "Recent";
 
-  const initialAddresses = await getAddressesByUserId(dbUser.id);
+  const [initialAddresses, initialOrders] = await Promise.all([
+    getAddressesByUserId(dbUser.id),
+    getOrdersByUserId(dbUser.id, email),
+  ]);
 
   return (
     <div className="min-h-[80vh] bg-stone-50/50">
@@ -81,6 +85,7 @@ export default async function AccountPage() {
             role,
           }}
           initialAddresses={initialAddresses}
+          initialOrders={initialOrders}
         />
       </Suspense>
     </div>

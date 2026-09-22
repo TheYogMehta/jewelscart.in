@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import type { AddressRecord } from "@/lib/addresses";
+import type { Order } from "@/lib/orders/types";
 import { AccountAddresses } from "./AccountAddresses";
 import { AccountSecurity } from "./AccountSecurity";
 import { AccountPrivacyPreferences } from "./AccountPrivacyPreferences";
+import { AccountOrders } from "./AccountOrders";
 
-type TabKey = "addresses" | "security" | "privacy";
+type TabKey = "orders" | "addresses" | "security" | "privacy";
 
 interface UserProps {
   id: number;
@@ -23,10 +25,15 @@ interface UserProps {
 interface Props {
   user: UserProps;
   initialAddresses: AddressRecord[];
+  initialOrders: Order[];
 }
 
-export function AccountDashboard({ user, initialAddresses }: Props) {
-  const [activeTab, setActiveTab] = useState<TabKey>("addresses");
+export function AccountDashboard({
+  user,
+  initialAddresses,
+  initialOrders,
+}: Props) {
+  const [activeTab, setActiveTab] = useState<TabKey>("orders");
   const [displayName, setDisplayName] = useState(user.name);
   const [addressCount, setAddressCount] = useState(initialAddresses.length);
 
@@ -40,7 +47,12 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const hash = window.location.hash.replace("#", "");
-    if (hash === "addresses" || hash === "security" || hash === "privacy") {
+    if (
+      hash === "orders" ||
+      hash === "addresses" ||
+      hash === "security" ||
+      hash === "privacy"
+    ) {
       setActiveTab(hash as TabKey);
     }
   }, []);
@@ -93,24 +105,21 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
     .toUpperCase();
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12 lg:px-8 space-y-8">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:py-10 lg:px-8 space-y-6">
       {/* Luxury Profile Header Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 shadow-xs">
-        {/* Subtle Decorative Background Glow */}
-        <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-amber-500/5 blur-3xl" />
-
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-          <div className="flex items-center gap-4 sm:gap-5 w-full sm:w-auto">
-            {/* Monogram Avatar with Subtle Gold Accent Ring */}
-            <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl bg-stone-900 text-2xl sm:text-3xl font-medium text-amber-200 border-2 border-gold/40 shadow-xs">
+      <div className="relative overflow-hidden rounded-2xl border border-stone-200/90 bg-white p-5 sm:p-6 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            {/* Refined Monogram Avatar */}
+            <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-stone-900 font-serif text-xl sm:text-2xl font-bold text-amber-200 border-2 border-amber-700/30 shadow-2xs">
               {avatarLetter}
             </div>
 
             {/* User Credentials */}
             <div className="flex-1 min-w-0">
               {!isEditingName ? (
-                <div className="flex items-center gap-3">
-                  <h1 className="font-display text-2xl sm:text-3xl font-semibold text-stone-900 tracking-tight truncate">
+                <div className="flex items-center gap-2">
+                  <h1 className="font-display text-xl sm:text-2xl font-bold text-stone-900 tracking-tight truncate">
                     {displayName}
                   </h1>
                   <button
@@ -119,8 +128,8 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
                       setEditName(displayName);
                       setIsEditingName(true);
                     }}
-                    className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-medium text-stone-600 hover:border-gold hover:text-gold transition cursor-pointer shrink-0"
-                    aria-label="Edit display name"
+                    className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:border-stone-400 hover:text-stone-900 transition cursor-pointer shrink-0"
+                    title="Edit Name"
                   >
                     <svg
                       className="h-3 w-3"
@@ -141,7 +150,7 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
               ) : (
                 <form
                   onSubmit={handleSaveName}
-                  className="flex flex-wrap items-center gap-2 animate-in fade-in duration-150"
+                  className="flex flex-wrap items-center gap-2"
                 >
                   <input
                     type="text"
@@ -149,12 +158,12 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
                     autoComplete="name"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="rounded-xl border border-stone-300 px-3 py-1.5 text-sm text-stone-900 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                    className="rounded-lg border border-stone-300 px-2.5 py-1 text-xs text-stone-900 focus:border-stone-900 focus:outline-none"
                   />
                   <button
                     type="submit"
                     disabled={savingName}
-                    className="rounded-xl bg-gold px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-gold-light transition disabled:opacity-50 cursor-pointer"
+                    className="rounded-lg bg-stone-900 px-3 py-1 text-xs font-semibold text-white hover:bg-stone-800 transition disabled:opacity-50 cursor-pointer"
                   >
                     {savingName ? "Saving..." : "Save"}
                   </button>
@@ -164,7 +173,7 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
                       setIsEditingName(false);
                       setNameError(null);
                     }}
-                    className="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+                    className="rounded-lg border border-stone-200 px-2.5 py-1 text-xs font-medium text-stone-600 hover:bg-stone-100 transition cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -182,10 +191,8 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
                 </p>
               )}
 
-              <p className="mt-0.5 text-xs sm:text-sm text-stone-500">
-                {user.email}
-              </p>
-              <p className="mt-1 text-xs text-stone-400">
+              <p className="mt-0.5 text-xs text-stone-500">{user.email}</p>
+              <p className="mt-0.5 text-[11px] text-stone-400">
                 Member since {user.memberSince}
               </p>
             </div>
@@ -194,19 +201,56 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
       </div>
 
       {/* Responsive Segmented Tab Navigation Bar */}
-      <div className="flex items-center overflow-x-auto no-scrollbar rounded-2xl bg-stone-100 p-1.5 border border-stone-200/80">
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-xl bg-stone-100/80 p-1 border border-stone-200/70">
+        {/* Tab: Orders & Purchases */}
+        <button
+          type="button"
+          onClick={() => handleTabChange("orders")}
+          className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
+            activeTab === "orders"
+              ? "bg-white text-stone-900 shadow-2xs"
+              : "text-stone-600 hover:text-stone-900 hover:bg-stone-50/50"
+          }`}
+        >
+          <svg
+            className="h-3.5 w-3.5 text-stone-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.8}
+              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+            />
+          </svg>
+          <span>Orders & Purchases</span>
+          {initialOrders.length > 0 && (
+            <span
+              className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                activeTab === "orders"
+                  ? "bg-stone-100 text-stone-800"
+                  : "bg-stone-200 text-stone-600"
+              }`}
+            >
+              {initialOrders.length}
+            </span>
+          )}
+        </button>
+
         {/* Tab: Address & Delivery */}
         <button
           type="button"
           onClick={() => handleTabChange("addresses")}
-          className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-semibold transition cursor-pointer ${
+          className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
             activeTab === "addresses"
-              ? "bg-white text-stone-900 shadow-xs"
-              : "text-stone-600 hover:text-stone-900"
+              ? "bg-white text-stone-900 shadow-2xs"
+              : "text-stone-600 hover:text-stone-900 hover:bg-stone-50/50"
           }`}
         >
           <svg
-            className="h-4 w-4"
+            className="h-3.5 w-3.5 text-stone-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -227,10 +271,10 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
           <span>Address & Delivery</span>
           {addressCount > 0 && (
             <span
-              className={`ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+              className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
                 activeTab === "addresses"
-                  ? "bg-amber-100 text-gold"
-                  : "bg-stone-200 text-stone-700"
+                  ? "bg-stone-100 text-stone-800"
+                  : "bg-stone-200 text-stone-600"
               }`}
             >
               {addressCount}
@@ -242,14 +286,14 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
         <button
           type="button"
           onClick={() => handleTabChange("security")}
-          className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-semibold transition cursor-pointer ${
+          className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
             activeTab === "security"
-              ? "bg-white text-stone-900 shadow-xs"
-              : "text-stone-600 hover:text-stone-900"
+              ? "bg-white text-stone-900 shadow-2xs"
+              : "text-stone-600 hover:text-stone-900 hover:bg-stone-50/50"
           }`}
         >
           <svg
-            className="h-4 w-4"
+            className="h-3.5 w-3.5 text-stone-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -268,14 +312,14 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
         <button
           type="button"
           onClick={() => handleTabChange("privacy")}
-          className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-semibold transition cursor-pointer ${
+          className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
             activeTab === "privacy"
-              ? "bg-white text-stone-900 shadow-xs"
-              : "text-stone-600 hover:text-stone-900"
+              ? "bg-white text-stone-900 shadow-2xs"
+              : "text-stone-600 hover:text-stone-900 hover:bg-stone-50/50"
           }`}
         >
           <svg
-            className="h-4 w-4"
+            className="h-3.5 w-3.5 text-stone-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -293,6 +337,10 @@ export function AccountDashboard({ user, initialAddresses }: Props) {
 
       {/* Tab Panels */}
       <div className="transition-all duration-200">
+        {activeTab === "orders" && (
+          <AccountOrders initialOrders={initialOrders} />
+        )}
+
         {activeTab === "addresses" && (
           <AccountAddresses
             initialAddresses={initialAddresses}

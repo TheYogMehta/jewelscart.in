@@ -34,6 +34,27 @@ export default auth((request) => {
     }
   }
 
+  if (pathname.startsWith("/api/admin/orders")) {
+    if (ip && !rateLimit(`api:${ip}`, 60, 60_000)) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+    if (!isStaffOrAbove(userRole)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
+  if (pathname.startsWith("/api/checkout")) {
+    if (ip && !rateLimit(`checkout:${ip}`, 5, 60_000)) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+  }
+
+  if (pathname.startsWith("/api/cart/reserve")) {
+    if (ip && !rateLimit(`cart-reserve:${ip}`, 10, 60_000)) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+  }
+
   // Protect /admin/users (developer and admin only)
   if (pathname.startsWith("/admin/users")) {
     if (!request.auth?.user) {
@@ -66,6 +87,9 @@ export const config = {
     "/admin/:path*",
     "/api/products/:path*",
     "/api/admin/users/:path*",
+    "/api/admin/orders/:path*",
     "/api/auth/:path*",
+    "/api/checkout/:path*",
+    "/api/cart/reserve",
   ],
 };

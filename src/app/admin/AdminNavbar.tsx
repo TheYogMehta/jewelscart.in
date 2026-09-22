@@ -76,6 +76,18 @@ export function AdminNavbar({ canManageUsers, canViewLogs, userEmail }: Props) {
               Analytics
             </Link>
 
+            {/* Orders */}
+            <Link
+              href="/admin/orders"
+              className={`rounded-xl px-3 py-1.5 font-medium transition ${
+                pathname.startsWith("/admin/orders")
+                  ? "bg-amber-50/70 text-gold font-semibold"
+                  : "text-stone-700 hover:bg-stone-50 hover:text-gold"
+              }`}
+            >
+              Orders
+            </Link>
+
             {/* Catalogue Dropdown */}
             <div
               className="relative"
@@ -277,6 +289,19 @@ export function AdminNavbar({ canManageUsers, canViewLogs, userEmail }: Props) {
               onClick={() => setMobileMenuOpen(false)}
             >
               Analytics
+            </Link>
+
+            {/* Orders */}
+            <Link
+              href="/admin/orders"
+              className={`block py-2 text-base font-medium transition ${
+                pathname.startsWith("/admin/orders")
+                  ? "text-gold font-semibold"
+                  : "text-stone-700 hover:text-gold"
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Orders
             </Link>
 
             {/* Catalogue Dropdown */}

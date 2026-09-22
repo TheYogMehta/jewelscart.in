@@ -20,14 +20,16 @@ export default async function AdminLayout({
   const showLogs = canViewLogs(session.user.role);
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-stone-50 pb-16">
-      <AdminNavbar
-        canManageUsers={showUserMgmt}
-        canViewLogs={showLogs}
-        userEmail={session.user.email}
-      />
+    <div className="min-h-screen w-full overflow-x-hidden bg-stone-50 pb-16 print:bg-white print:p-0 print:pb-0">
+      <div className="print:hidden">
+        <AdminNavbar
+          canManageUsers={showUserMgmt}
+          canViewLogs={showLogs}
+          userEmail={session.user.email}
+        />
+      </div>
 
-      <div className="mx-auto w-full max-w-7xl min-w-0 px-4 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl min-w-0 px-4 pt-6 sm:px-6 lg:px-8 print:p-0 print:max-w-none">
         {children}
       </div>
     </div>

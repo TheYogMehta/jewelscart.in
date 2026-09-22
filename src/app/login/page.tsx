@@ -1,13 +1,15 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useRef, useState, useCallback, useEffect } from "react";
 import { sanitizeCallbackUrl } from "@/lib/security";
 import { Turnstile, type TurnstileRef } from "@/components/Turnstile";
 
 function LoginContent() {
+  const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const searchParams = useSearchParams();
   const rawCallback = searchParams.get("callbackUrl") ?? "/";
   const callbackUrl = sanitizeCallbackUrl(
@@ -44,6 +46,12 @@ function LoginContent() {
   );
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    if (sessionStatus === "authenticated" && session?.user) {
+      router.replace(callbackUrl);
+    }
+  }, [sessionStatus, session, callbackUrl, router]);
 
   useEffect(() => {
     if (isVerified || isReset) {

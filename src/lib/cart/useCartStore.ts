@@ -1,6 +1,9 @@
+"use client";
+
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useEffect, useState } from "react";
+export { calculateShippingFee, type ShippingFeeResult } from "./shipping";
 
 export interface CartItem {
   id: string;
@@ -27,57 +30,12 @@ export interface DeliveryAddress {
   pincode: string;
 }
 
-export function calculateShippingFee(
-  subtotal: number,
-  state?: string,
-): {
-  fee: number;
-  label: string;
-  isFree: boolean;
-  thresholdRemaining: number;
-} {
-  const FREE_SHIPPING_THRESHOLD = 5000;
-  if (subtotal >= FREE_SHIPPING_THRESHOLD) {
-    return {
-      fee: 0,
-      label: "FREE (Orders over ₹5,000)",
-      isFree: true,
-      thresholdRemaining: 0,
-    };
-  }
-
-  const remaining = FREE_SHIPPING_THRESHOLD - subtotal;
-
-  if (!state || !state.trim()) {
-    return {
-      fee: 0,
-      label: "Select delivery address to calculate",
-      isFree: false,
-      thresholdRemaining: remaining,
-    };
-  }
-
-  if (state.trim().toLowerCase() === "maharashtra") {
-    return {
-      fee: 99,
-      label: "Flat ₹99 (Maharashtra)",
-      isFree: false,
-      thresholdRemaining: remaining,
-    };
-  }
-
-  return {
-    fee: 199,
-    label: "Flat ₹199 (Pan-India)",
-    isFree: false,
-    thresholdRemaining: remaining,
-  };
-}
-
 interface CartStore {
   items: CartItem[];
   isOpen: boolean;
   deliveryAddress: DeliveryAddress | null;
+  reservationSessionId: string | null;
+  reservationExpiresAt: number | null;
 
   openCart: () => void;
   closeCart: () => void;
@@ -90,6 +48,9 @@ interface CartStore {
 
   setDeliveryAddress: (address: DeliveryAddress | null) => void;
 
+  setReservation: (sessionId: string, expiresAt: number) => void;
+  clearReservation: () => void;
+
   getItemCount: () => number;
   getItemQuantity: (id: string) => number;
   getSubtotal: () => number;
@@ -101,12 +62,22 @@ export const useCartStore = create<CartStore>()(
       items: [],
       isOpen: false,
       deliveryAddress: null,
+      reservationSessionId: null,
+      reservationExpiresAt: null,
 
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
 
       setDeliveryAddress: (address) => set({ deliveryAddress: address }),
+
+      setReservation: (sessionId, expiresAt) =>
+        set({
+          reservationSessionId: sessionId,
+          reservationExpiresAt: expiresAt,
+        }),
+      clearReservation: () =>
+        set({ reservationSessionId: null, reservationExpiresAt: null }),
 
       addItem: (item, qty = 1) => {
         set((state) => {

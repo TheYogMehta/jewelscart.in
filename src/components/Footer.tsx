@@ -11,7 +11,7 @@ export function Footer() {
   }
 
   return (
-    <footer className="mt-16 border-t border-stone-800 bg-stone-900 text-stone-300">
+    <footer className="mt-16 border-t border-stone-800 bg-stone-900 text-stone-300 print:hidden">
       {/* Brand & Social/Location Icons */}
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 py-10 sm:flex-row lg:px-8">
         <div className="text-center sm:text-left">

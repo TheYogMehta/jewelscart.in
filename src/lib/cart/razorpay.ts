@@ -15,10 +15,11 @@ export interface RazorpayOptions {
   theme?: {
     color?: string;
   };
-  handler?: (response: RazorpayPaymentSuccessResponse) => void;
+  handler?: (response: RazorpayPaymentSuccessResponse) => void | Promise<void>;
   modal?: {
     ondismiss?: () => void;
   };
+  onPaymentFailed?: (response: unknown) => void;
 }
 
 export interface RazorpayPaymentSuccessResponse {
@@ -91,6 +92,9 @@ export async function startRazorpayCheckout(
 
   try {
     const rzp = new window.Razorpay(checkoutOptions);
+    if (options.onPaymentFailed) {
+      rzp.on("payment.failed", options.onPaymentFailed);
+    }
     rzp.open();
     return true;
   } catch (err) {
