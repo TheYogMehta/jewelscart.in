@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCartStore } from "@/lib/cart/useCartStore";
 
 interface AddToCartButtonProps {
@@ -19,10 +19,32 @@ interface AddToCartButtonProps {
 }
 
 export function AddToCartButton({ product }: AddToCartButtonProps) {
-  const [quantity, setQuantity] = useState(1);
-  const [isAdded, setIsAdded] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeItem = useCartStore((state) => state.removeItem);
   const openCart = useCartStore((state) => state.openCart);
+
+  useEffect(() => {
+    setMounted(true);
+    setCurrentUrl(window.location.href);
+  }, []);
+
+  const itemId = String(product.id || (product as any)._id || product.slug);
+  const cartItem = mounted
+    ? items.find(
+        (i) =>
+          i.id === itemId ||
+          i.productId === itemId ||
+          (product.slug && i.slug === product.slug),
+      )
+    : null;
+
+  const currentInBag = cartItem ? cartItem.quantity : 0;
+  const isInBag = currentInBag > 0;
 
   const maxStock = product.qty != null ? Number(product.qty) : Infinity;
   const isOutOfStock =
@@ -35,8 +57,8 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
 
     addItem(
       {
-        id: product.id,
-        productId: product.id,
+        id: itemId,
+        productId: itemId,
         slug: product.slug,
         name: product.name,
         price: product.price as number,
@@ -46,42 +68,32 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
         sku: product.sku,
         maxStock: product.qty != null ? Number(product.qty) : null,
       },
-      quantity,
+      1,
     );
-
-    setIsAdded(true);
-    setTimeout(() => {
-      setIsAdded(false);
-    }, 2000);
   };
 
-  const handleBuyNow = () => {
-    if (isOutOfStock || hasNoPrice) return;
+  const handleDecrement = () => {
+    if (cartItem) {
+      if (currentInBag <= 1) {
+        removeItem(cartItem.id);
+      } else {
+        updateQuantity(cartItem.id, currentInBag - 1);
+      }
+    }
+  };
 
-    addItem(
-      {
-        id: product.id,
-        productId: product.id,
-        slug: product.slug,
-        name: product.name,
-        price: product.price as number,
-        image: product.image,
-        type: product.type,
-        category: product.category,
-        sku: product.sku,
-        maxStock: product.qty != null ? Number(product.qty) : null,
-      },
-      quantity,
-    );
-
-    openCart();
+  const handleIncrement = () => {
+    if (cartItem) {
+      if (currentInBag >= maxStock) return;
+      updateQuantity(cartItem.id, currentInBag + 1);
+    }
   };
 
   if (hasNoPrice) {
     return null;
   }
 
-  const isMaxStockReached = quantity >= maxStock;
+  const isMaxStockReached = currentInBag >= maxStock;
 
   return (
     <div className="flex flex-col gap-3 w-full sm:w-auto">
@@ -94,26 +106,37 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
 
       {/* Quantity & Actions */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Quantity selector */}
-        {!isOutOfStock && (
-          <div className="flex h-11 items-center rounded-full border border-stone-200 bg-stone-50/80 px-2">
+        {isOutOfStock ? (
+          <button
+            type="button"
+            disabled
+            className="flex h-11 items-center justify-center rounded-full bg-stone-200 px-7 text-xs font-semibold uppercase tracking-wider text-stone-400 cursor-not-allowed"
+          >
+            Out of Stock
+          </button>
+        ) : isInBag ? (
+          <div className="flex h-11 items-center rounded-full border border-stone-300 bg-stone-50/90 px-2 shadow-2xs">
             <button
               type="button"
-              disabled={quantity <= 1}
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-stone-600 hover:bg-white hover:text-stone-900 disabled:opacity-30 transition"
-              aria-label="Decrease quantity"
+              onClick={handleDecrement}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-stone-600 hover:bg-white hover:text-stone-900 transition cursor-pointer text-base font-bold"
+              aria-label={
+                currentInBag === 1 ? "Remove from bag" : "Decrease quantity"
+              }
+              title={
+                currentInBag === 1 ? "Remove from bag" : "Decrease quantity"
+              }
             >
               -
             </button>
             <span className="w-9 text-center text-xs font-semibold text-stone-900">
-              {quantity}
+              {currentInBag}
             </span>
             <button
               type="button"
               disabled={isMaxStockReached}
-              onClick={() => setQuantity((q) => Math.min(q + 1, maxStock))}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-stone-600 hover:bg-white hover:text-stone-900 disabled:opacity-30 disabled:cursor-not-allowed transition"
+              onClick={handleIncrement}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-stone-600 hover:bg-white hover:text-stone-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer text-base font-bold"
               aria-label="Increase quantity"
               title={
                 isMaxStockReached ? `Maximum available: ${maxStock}` : undefined
@@ -122,70 +145,51 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
               +
             </button>
           </div>
-        )}
-
-        {/* Add to Bag Button */}
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          disabled={isOutOfStock}
-          className={`flex h-11 items-center justify-center gap-2 rounded-full px-7 text-xs font-semibold uppercase tracking-wider transition ${
-            isOutOfStock
-              ? "bg-stone-200 text-stone-400 cursor-not-allowed"
-              : isAdded
-                ? "bg-emerald-600 text-white shadow-xs"
-                : "bg-stone-900 text-white hover:bg-stone-800 shadow-xs"
-          }`}
-        >
-          {isOutOfStock ? (
-            "Out of Stock"
-          ) : isAdded ? (
-            <>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span>Added to Bag</span>
-            </>
-          ) : (
-            <>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-              <span>Add to Bag</span>
-            </>
-          )}
-        </button>
-
-        {/* Buy Now Button */}
-        {!isOutOfStock && (
+        ) : (
           <button
             type="button"
-            onClick={handleBuyNow}
-            className="flex h-11 items-center justify-center rounded-full bg-gold px-7 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-gold-light transition"
+            onClick={handleAddToCart}
+            className="flex h-11 items-center justify-center gap-2 rounded-full bg-stone-900 px-7 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 shadow-xs transition cursor-pointer"
           >
-            Buy Now
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+              />
+            </svg>
+            <span>Add to Bag</span>
           </button>
         )}
+
+        {/* Inquire via WhatsApp */}
+        <a
+          href={`https://wa.me/919920685652?text=${encodeURIComponent(
+            `Hi JewelsCart, I want to inquire about this product: ${product.name} (${currentUrl || `https://jewelscart.in/products/${product.slug}`})`,
+          )}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-11 items-center justify-center gap-1.5 rounded-full border border-stone-300 bg-white px-6 text-xs font-medium uppercase tracking-wider text-stone-700 hover:bg-stone-50 hover:border-stone-400 transition"
+        >
+          <svg
+            className="h-4 w-4 text-emerald-600"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          </svg>
+          <span>Inquire</span>
+        </a>
       </div>
     </div>
   );

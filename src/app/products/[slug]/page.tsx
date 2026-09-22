@@ -39,18 +39,52 @@ export default async function ProductPage({ params }: Props) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const breadcrumbs = breadcrumbJsonLd([
-    { name: "Home", path: "/" },
-    ...(product.category
-      ? [
-          {
-            name: product.category,
-            path: `/products/${product.slug}`,
-          },
-        ]
-      : []),
-    { name: product.name, path: `/products/${product.slug}` },
-  ]);
+  const toSlug = (text: string) =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+  const breadcrumbItems: { label: string; href?: string }[] = [
+    { label: "Discover", href: "/discover" },
+  ];
+
+  let currentCategoryPath = "/category";
+
+  if (product.category) {
+    currentCategoryPath += `/${toSlug(product.category)}`;
+    breadcrumbItems.push({
+      label: product.category,
+      href: currentCategoryPath,
+    });
+  }
+
+  if (product.sub_category) {
+    currentCategoryPath += `/${toSlug(product.sub_category)}`;
+    breadcrumbItems.push({
+      label: product.sub_category,
+      href: currentCategoryPath,
+    });
+  }
+
+  if (product.child_category) {
+    currentCategoryPath += `/${toSlug(product.child_category)}`;
+    breadcrumbItems.push({
+      label: product.child_category,
+      href: currentCategoryPath,
+    });
+  }
+
+  breadcrumbItems.push({ label: product.name });
+
+  const breadcrumbs = breadcrumbJsonLd(
+    breadcrumbItems.map((item) => ({
+      name: item.label,
+      path: item.href || `/products/${product.slug}`,
+    })),
+  );
 
   return (
     <>
@@ -64,19 +98,7 @@ export default async function ProductPage({ params }: Props) {
       />
 
       <article className="mx-auto max-w-7xl px-4 py-10 lg:px-8">
-        <Breadcrumbs
-          items={[
-            { label: "Home", href: "/" },
-            ...(product.category
-              ? [
-                  {
-                    label: product.category,
-                  },
-                ]
-              : []),
-            { label: product.name },
-          ]}
-        />
+        <Breadcrumbs items={breadcrumbItems} />
 
         <div className="grid gap-10 lg:grid-cols-2">
           <ProductGallery media={product.media} name={product.name} />
@@ -88,11 +110,9 @@ export default async function ProductPage({ params }: Props) {
                   {product.type}
                 </p>
               )}
-              {product.stock_status && (
-                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-medium text-stone-600">
-                  {product.stock_status === "in_stock"
-                    ? "In Stock"
-                    : "Out of Stock"}
+              {product.stock_status && product.stock_status !== "in_stock" && (
+                <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-medium text-red-600 border border-red-200">
+                  Out of Stock
                 </span>
               )}
             </div>
@@ -117,11 +137,6 @@ export default async function ProductPage({ params }: Props) {
                 SKU: {product.sku}
               </p>
             )}
-            {product.description && (
-              <p className="mt-5 leading-relaxed text-stone-700">
-                {product.description}
-              </p>
-            )}
 
             {product.price != null && (
               <div className="mt-6 border-y border-stone-200/80 py-5">
@@ -142,87 +157,11 @@ export default async function ProductPage({ params }: Props) {
               </div>
             )}
 
-            {/* Product Specifications & Care Guide */}
-            <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-50/70 p-5 text-xs text-stone-700 space-y-3">
-              <p className="font-semibold uppercase tracking-wider text-stone-900 text-[11px]">
-                Product Specifications
+            {product.description && (
+              <p className="mt-5 leading-relaxed text-stone-700">
+                {product.description}
               </p>
-              <div className="grid grid-cols-2 gap-y-2.5 gap-x-4">
-                {product.length && (
-                  <div>
-                    <span className="text-stone-500">Length / Dimensions:</span>
-                    <p className="font-medium text-stone-800">
-                      {product.length}
-                    </p>
-                  </div>
-                )}
-                {product.weight && (
-                  <div>
-                    <span className="text-stone-500">Weight:</span>
-                    <p className="font-medium text-stone-800">
-                      {product.weight}
-                    </p>
-                  </div>
-                )}
-                {product.qty != null && (
-                  <div>
-                    <span className="text-stone-500">Available Quantity:</span>
-                    <p className="font-medium text-stone-800">
-                      {product.qty} unit{product.qty === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <span className="text-stone-500">Classification:</span>
-                  <p className="font-medium text-stone-800">
-                    Handcrafted Fashion Jewellery
-                  </p>
-                </div>
-                <div>
-                  <span className="text-stone-500">Country of Origin:</span>
-                  <p className="font-medium text-stone-800">India</p>
-                </div>
-                <div>
-                  <span className="text-stone-500">Manufacturer & Packer:</span>
-                  <p className="font-medium text-stone-800">
-                    JewelsCart, Mumbai, Maharashtra
-                  </p>
-                </div>
-              </div>
-
-              <div className="border-t border-stone-200/80 pt-3">
-                <p className="font-semibold text-stone-900 mb-1">
-                  Jewellery Care Guide:
-                </p>
-                <p className="text-stone-600 leading-relaxed">
-                  Avoid direct contact with water, sprays, sanitizers, and
-                  strong perfumes. Store each piece in a dry, airtight ziplock
-                  pouch. Normal wear or tarnishing caused by chemical exposure
-                  is not considered a manufacturing defect.
-                </p>
-              </div>
-
-              <div className="border-t border-stone-200/80 pt-2 text-stone-500 text-[11px] flex items-center justify-between">
-                <span>
-                  Handcrafted to order • Strictly no returns or refunds
-                </span>
-                <Link
-                  href="/contact"
-                  className="text-gold hover:underline font-medium"
-                >
-                  Have questions? Contact us &rarr;
-                </Link>
-              </div>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-4">
-              <Link
-                href="/contact"
-                className="rounded-full border border-stone-300 px-6 py-2.5 text-xs font-medium text-stone-700 hover:bg-stone-50 transition"
-              >
-                Inquire
-              </Link>
-            </div>
+            )}
           </div>
         </div>
       </article>

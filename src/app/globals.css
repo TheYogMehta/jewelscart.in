@@ -16,3 +16,15 @@ body {
   font-variant-numeric: lining-nums;
   font-feature-settings: "lnum" 1;
 }
+
+img,
+video {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}

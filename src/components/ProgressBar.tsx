@@ -35,6 +35,19 @@ export function ProgressBar() {
     window.addEventListener("app:loading-start", handleStart);
     window.addEventListener("app:loading-stop", handleStop);
 
+    const handleDragStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.tagName === "IMG" ||
+        target?.tagName === "VIDEO" ||
+        target?.closest("img") ||
+        target?.closest("video")
+      ) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("dragstart", handleDragStart);
+
     const handleClick = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest("a");
       if (!anchor) return;
@@ -74,6 +87,7 @@ export function ProgressBar() {
     return () => {
       window.removeEventListener("app:loading-start", handleStart);
       window.removeEventListener("app:loading-stop", handleStop);
+      window.removeEventListener("dragstart", handleDragStart);
       document.removeEventListener("click", handleClick, { capture: true });
     };
   }, []);

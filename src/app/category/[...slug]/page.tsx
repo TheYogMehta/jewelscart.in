@@ -14,6 +14,24 @@ interface CategoryPageProps {
   searchParams: Promise<{ sub?: string; child?: string; type?: string }>;
 }
 
+function matchesCategorySlugOrName(
+  cat: CategoryDocument,
+  target?: string | null,
+) {
+  if (!target) return false;
+  const norm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normNoAnd = (str: string) => norm(str).replace(/and/g, "");
+  const t = norm(target);
+  const s = norm(cat.slug);
+  const n = norm(cat.name);
+  return (
+    s === t ||
+    n === t ||
+    normNoAnd(s) === normNoAnd(t) ||
+    normNoAnd(n) === normNoAnd(t)
+  );
+}
+
 async function resolveCategoryRoute(
   slugSegments: string[],
   searchParams: { sub?: string; child?: string; type?: string },
@@ -41,40 +59,33 @@ async function resolveCategoryRoute(
   }
 
   if (slugSegments.length >= 2) {
-    const subSlug = slugSegments[1].toLowerCase();
+    const subSlug = slugSegments[1];
     matchedSub =
-      category.children?.find(
-        (s: CategoryDocument) =>
-          s.slug.toLowerCase() === subSlug || s.name.toLowerCase() === subSlug,
+      category.children?.find((s: CategoryDocument) =>
+        matchesCategorySlugOrName(s, subSlug),
       ) || null;
   } else if (!matchedSub) {
     const activeSubName = searchParams.sub || searchParams.type;
     if (activeSubName) {
       matchedSub =
-        category.children?.find(
-          (s: CategoryDocument) =>
-            s.name.toLowerCase() === activeSubName.toLowerCase() ||
-            s.slug.toLowerCase() === activeSubName.toLowerCase(),
+        category.children?.find((s: CategoryDocument) =>
+          matchesCategorySlugOrName(s, activeSubName),
         ) || null;
     }
   }
 
   if (slugSegments.length >= 3 && matchedSub) {
-    const childSlug = slugSegments[2].toLowerCase();
+    const childSlug = slugSegments[2];
     matchedChild =
-      matchedSub.children?.find(
-        (c: CategoryDocument) =>
-          c.slug.toLowerCase() === childSlug ||
-          c.name.toLowerCase() === childSlug,
+      matchedSub.children?.find((c: CategoryDocument) =>
+        matchesCategorySlugOrName(c, childSlug),
       ) || null;
   } else if (!matchedChild && matchedSub) {
     const activeChildName = searchParams.child;
     if (activeChildName) {
       matchedChild =
-        matchedSub.children?.find(
-          (c: CategoryDocument) =>
-            c.name.toLowerCase() === activeChildName.toLowerCase() ||
-            c.slug.toLowerCase() === activeChildName.toLowerCase(),
+        matchedSub.children?.find((c: CategoryDocument) =>
+          matchesCategorySlugOrName(c, activeChildName),
         ) || null;
     }
   }
@@ -187,6 +198,10 @@ export default async function CategoryPage({
   ).filter((item: CategoryDocument) => item.is_visible);
 
   const breadcrumbs = [
+    {
+      label: "Discover",
+      href: "/discover",
+    },
     {
       label: category.name,
       href: matchedSub ? `/category/${category.slug}` : undefined,

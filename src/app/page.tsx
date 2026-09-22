@@ -216,16 +216,15 @@ export default async function HomePage() {
       </section>
 
       {/* 5. Bespoke Atelier Spotlight */}
-      <section className="bg-stone-900 text-white py-16 lg:py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,#b8860b26,transparent_50%)]" />
-        <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-light">
+      <section className="bg-white border-t border-stone-200/80 py-16 lg:py-20">
+        <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
             Bespoke Jewellery Service
           </span>
-          <h2 className="font-display mt-3 text-3xl font-semibold sm:text-4xl lg:text-5xl leading-tight">
+          <h2 className="font-display mt-2 text-3xl font-semibold text-stone-900 md:text-4xl lg:text-5xl leading-tight">
             Have a Dream Design in Mind?
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-sm sm:text-base text-stone-300 font-light leading-relaxed">
+          <p className="mx-auto mt-4 max-w-2xl text-sm sm:text-base text-stone-600 font-normal leading-relaxed">
             Whether it&apos;s matching your bridal lehenga or creating an
             exclusive statement piece, our master artisans craft bespoke
             commissions customized to your exact fabric, gemstone, and metal
@@ -234,7 +233,7 @@ export default async function HomePage() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <Link
               href="/contact"
-              className="rounded-xl bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-wider text-white hover:bg-gold-light transition shadow-xs"
+              className="rounded-full bg-stone-900 px-8 py-3 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition shadow-xs cursor-pointer"
             >
               Enquire
             </Link>
@@ -242,9 +241,20 @@ export default async function HomePage() {
               href="https://wa.me/919920685652?text=Hi%20JewelsCart,%20I'm%20interested%20in%20a%20custom%20jewellery%20design"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-xl border border-stone-600 bg-stone-800/80 px-7 py-3 text-xs font-semibold uppercase tracking-wider text-stone-200 hover:bg-stone-700 transition"
+              className="flex items-center gap-2 rounded-full border border-stone-300 bg-white px-7 py-3 text-xs font-semibold uppercase tracking-wider text-stone-700 hover:bg-stone-50 hover:border-stone-400 transition cursor-pointer"
             >
-              Chat on WhatsApp
+              <svg
+                className="h-4 w-4 text-emerald-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              <span>Chat on WhatsApp</span>
             </a>
           </div>
         </div>
